@@ -372,6 +372,22 @@ cat > "${PATCH_FILE}" << 'PATCHEOF'
 PATCHEOF
 log "  -> patch written: ${PATCH_FILE}"
 
+# ─── NOTE: NGINX Rift CVEs (Kong discussion #14867) — NO PATCH NEEDED ────────
+# CVE-2026-42945 (rewrite), 42946 (scgi/uwsgi), 40701 (OCSP resolver),
+# 42934 (charset), 40460 (HTTP/3) and 42926 (proxy_v2/HTTP2).
+# DO NOT add OPENRESTY_PATCHES entries to backport these — OpenResty 1.29.2.5
+# ALREADY ships all of them. Verified 2026-05-26: every added line of the
+# upstream fix commits 524977e / 54b7945 / d2b8d47 / 5461e8b / f79c286 /
+# 5f86648 is already present in bundle/nginx-1.29.2, even though the nginx
+# version string still reads "1.29.2". nginx.org lists "1.29.2" as vulnerable
+# because that table tracks VANILLA nginx, not OpenResty's backported bundle.
+# CVE-2026-42926 does not apply: ngx_http_proxy_v2_module was introduced in
+# nginx 1.29.4 and is absent in 1.29.2.
+# Adding those patches would BREAK the build: kong-ngx-build runs `patch -p1`
+# WITHOUT --forward, so already-applied hunks trigger "Reversed (or previously
+# applied) patch detected" -> non-zero exit -> `|| fatal`.
+# (Kong's advisory also notes the default Kong config triggers none of these.)
+
 # ─── Patch I: fix 'set -e/' typo in kong-ngx-build ───────────────────────────
 # After trying the primary LuaRocks download URL, the script does `set +e` and
 # then is supposed to restore errexit with `set -e`.  A typo writes `set -e/`
