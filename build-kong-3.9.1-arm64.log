@@ -1,1 +1,480 @@
-[INFO]  Setting up QEMU for arm64 emulation ...
+[INFO]  Host is arm64; arm64 build is native — skipping QEMU registration.
+[INFO]  kong-build-tools already present – pulling latest master ...
+M	Makefile
+M	build-kong.sh
+M	dockerfiles/Dockerfile.kong
+M	dockerfiles/Dockerfile.openresty
+M	openresty-build-tools/kong-ngx-build
+M	test/kong-tests-compose.yaml
+Your branch is up to date with 'origin/master'.
+Already up to date.
+[INFO]  Kong source already present at /tmp/kong-source-391-arm64
+[INFO]  Kong .requirements:
+OPENSSL=3.2.3
+OPENSSL_SHA256=52b5f1c6b8022bc5868c308c54fb77705e702d6c6f4594f99a0df216acf46239
+[INFO]  Patching duplicate healthcheck in test/kong-tests-compose.yaml ...
+  -> already clean, no patch needed.
+[INFO]  Initialising submodules in kong-build-tools ...
+  -> Patched Dockerfile.openresty
+  -> Patched Dockerfile.kong
+[INFO]  Patched Dockerfiles: removed syntax directive and secret mounts
+[INFO]  Patched Makefile: removed --secret lines
+[INFO]  Patching /tmp/kong-build-tools-391-arm64/openresty-build-tools/kong-ngx-build to support PCRE2 downloads
+  -> already patched, skipping
+[INFO]  Patching /tmp/kong-build-tools-391-arm64/openresty-build-tools/kong-ngx-build: fixing OpenResty download URL
+  -> already correct, skipping
+[INFO]  Patching /tmp/kong-build-tools-391-arm64/openresty-build-tools/kong-ngx-build: fixing lua-resty-websocket download URL
+  -> already correct, skipping
+[INFO]  Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.5 (ngx_lua-0.10.31rc2) ...
+[INFO]    -> patch written: /tmp/kong-build-tools-391-arm64/openresty-patches/patches/1.29.2.5/ngx_lua-0.10.31rc2_01-add-disable-http2-alpn.patch
+[INFO]  Patching /tmp/kong-build-tools-391-arm64/openresty-build-tools/kong-ngx-build: fixing 'set -e/' typo
+  -> already correct, skipping
+[INFO]  Patching build-kong.sh: clear LuaRocks manifest cache before install
+  -> LuaRocks cache-clear added to build-kong.sh
+[INFO]  Patching build-kong.sh: pre-install deps via per-author manifests + --deps-mode none
+  -> per-author dep installs + --deps-mode none added to build-kong.sh
+[INFO]  Removing stale openresty Docker image: kong-build-local-arm64:openresty-deb-f23863f-f5f1b342c66db6b95cd7b389db781bf1b4b63519f2d1be80be251f171cf3f8dc10-0-openssl
+Untagged: kong-build-local-arm64:openresty-deb-f23863f-f5f1b342c66db6b95cd7b389db781bf1b4b63519f2d1be80be251f171cf3f8dc10-0-openssl
+[INFO]  arm64 kong/fpm:0.5.1 already present — skipping build
+[INFO]  Pre-pulling arm64 alpine for the package wrapper stage ...
+latest: Pulling from library/alpine
+Digest: sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+Status: Image is up to date for alpine:latest
+docker.io/library/alpine:latest
+[INFO]  Starting Kong arm64 build ...
+[INFO]    TARGET_PLATFORM     = linux/arm64
+[INFO]    KONG_VERSION        = 3.9.1
+[INFO]    RESTY_VERSION       = 1.29.2.5
+[INFO]    LUAROCKS            = 3.11.1
+[INFO]    RESTY_OPENSSL_VER   = 3.5.6
+[INFO]    RESTY_PCRE_VERSION  = 10.46
+[INFO]    RESTY_IMAGE_BASE    = ubuntu:26.04
+[INFO]    DOCKER_REPOSITORY   = kong-build-local-arm64
+[INFO]  
+starting make in kong-build-tools
+docker-compose -f test/kong-tests-compose.yaml down
+docker-compose -f test/kong-tests-compose.yaml rm -f
+docker stop user-validation-tests || true
+docker rm user-validation-tests || true
+docker volume prune -f
+Total reclaimed space: 0B
+rm -rf kong
+rm -rf docker-kong
+rm -rf output/*
+rm -f github-token
+git submodule deinit -f .
+Cleared directory 'lua-kong-nginx-module'
+Submodule 'lua-kong-nginx-module' (git@github.com:Kong/lua-kong-nginx-module.git) unregistered for path 'lua-kong-nginx-module'
+Cleared directory 'lua-resty-lmdb'
+Submodule 'lua-resty-lmdb' (git@github.com:Kong/lua-resty-lmdb.git) unregistered for path 'lua-resty-lmdb'
+docker rmi "kong/kong":3.9.1-ubuntu
+docker rmi amd64-3.9.1-ubuntu
+docker rmi arm64-3.9.1-ubuntu
+'running build: RESTY_IMAGE_BASE: ubuntu'
+'               RESTY_IMAGE_TAG:  26.04'
+.ci/setup_ci.sh
+/Library/Developer/CommandLineTools/usr/bin/make build-kong
+starting make in kong-build-tools
+rm -rf kong
+cp -R /tmp/kong-source-391-arm64 kong
+mkdir -pv kong/distribution
+kong/distribution
+git submodule update --init --recursive
+Submodule path 'lua-kong-nginx-module': checked out 'fec73310688b16da974a97e52bf27aa9c698bfaa'
+Submodule path 'lua-resty-lmdb': checked out '13384fcdcec7b15f1b499c8c958ab6a050e64f10'
+Submodule path 'lua-resty-lmdb/lmdb': checked out '01b1b7dc204abdf3849536979205dc9e3a0e3ece'
+git submodule status
+ fec73310688b16da974a97e52bf27aa9c698bfaa lua-kong-nginx-module (0.2.0-17-gfec7331)
+ 13384fcdcec7b15f1b499c8c958ab6a050e64f10 lua-resty-lmdb (1.0.0~2)
+git -C kong submodule update --init --recursive
+git -C kong submodule status
+cp kong/.requirements kong/distribution/.requirements
+touch id_rsa.private
+false kong-build-local-arm64:kong-deb-$(git rev-parse --short HEAD)10-3.9.1-$(git --git-dir=/tmp/kong-source-391-arm64/.git rev-parse --short HEAD)-0-openssl || \
+	( /Library/Developer/CommandLineTools/usr/bin/make build-openresty && \
+	-rm github-token; \
+	echo $GITHUB_TOKEN > github-token; \
+	docker build --build-arg TARGETPLATFORM=linux/arm64 -f dockerfiles/Dockerfile.kong \
+	--build-arg PACKAGE_TYPE=deb \
+	--build-arg DOCKER_REPOSITORY=kong-build-local-arm64 \
+	--build-arg DOCKER_OPENRESTY_SUFFIX=$(git rev-parse --short HEAD)-$(find kong/distribution -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum  | cut -d' ' -f 1)10-0-openssl \
+	--build-arg ENABLE_LJBC=`grep ENABLE_LJBC /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+	--build-arg BUILDKIT_INLINE_CACHE=1 \
+	--build-arg SSL_PROVIDER=openssl \
+	-t kong-build-local-arm64:kong-deb-$(git rev-parse --short HEAD)10-3.9.1-$(git --git-dir=/tmp/kong-source-391-arm64/.git rev-parse --short HEAD)-0-openssl . )
+starting make in kong-build-tools
+rm -rf kong
+cp -R /tmp/kong-source-391-arm64 kong
+mkdir -pv kong/distribution
+kong/distribution
+git submodule update --init --recursive
+git submodule status
+ fec73310688b16da974a97e52bf27aa9c698bfaa lua-kong-nginx-module (0.2.0-17-gfec7331)
+ 13384fcdcec7b15f1b499c8c958ab6a050e64f10 lua-resty-lmdb (1.0.0~2)
+git -C kong submodule update --init --recursive
+git -C kong submodule status
+cp kong/.requirements kong/distribution/.requirements
+rm github-token
+false kong-build-local-arm64:openresty-deb-$(git rev-parse --short HEAD)-$(find kong/distribution -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum  | cut -d' ' -f 1)10-0-openssl || \
+	( \
+		echo $GITHUB_TOKEN > github-token; \
+		docker pull --quiet $(sed -ne 's;FROM \(.*deb.*\) as.*;\1;p' dockerfiles/Dockerfile.openresty); \
+		docker build --build-arg TARGETPLATFORM=linux/arm64 -f dockerfiles/Dockerfile.openresty \
+		--build-arg RESTY_VERSION=1.29.2.5 \
+		--build-arg RESTY_LUAROCKS_VERSION=3.11.1 \
+		--build-arg KONG_OPENSSL_VERSION=0 \
+		--build-arg RESTY_OPENSSL_VERSION=3.5.6 \
+		--build-arg RESTY_BORINGSSL_VERSION=`grep RESTY_BORINGSSL_VERSION /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg SSL_PROVIDER=openssl \
+		--build-arg RESTY_PCRE_VERSION=10.46 \
+		--build-arg PACKAGE_TYPE=deb \
+		--build-arg DOCKER_REPOSITORY=kong-build-local-arm64 \
+		--build-arg DOCKER_BASE_SUFFIX=$(git rev-parse --short HEAD)0 \
+		--build-arg EDITION=`grep EDITION /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg ENABLE_KONG_LICENSING=`grep ENABLE_KONG_LICENSING /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg KONG_NGINX_MODULE=`grep KONG_NGINX_MODULE /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg RESTY_LMDB=`grep RESTY_LMDB /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg RESTY_WEBSOCKET=`grep RESTY_WEBSOCKET /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg RESTY_EVENTS=`grep RESTY_EVENTS /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg ATC_ROUTER=`grep ATC_ROUTER /tmp/kong-source-391-arm64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg OPENRESTY_PATCHES=1 \
+		--build-arg DEBUG=0 \
+		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		-t kong-build-local-arm64:openresty-deb-$(git rev-parse --short HEAD)-$(find kong/distribution -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum  | cut -d' ' -f 1)10-0-openssl . && \
+		( \
+			rm github-token || true \
+		) \
+	)
+docker.io/kong/kong-build-tools:deb-1.8.3
+Sending build context to Docker daemon  88.09MB
+Step 1/54 : ARG DOCKER_BASE_SUFFIX
+Step 2/54 : ARG DOCKER_REPOSITORY
+Step 3/54 : ARG PACKAGE_TYPE
+Step 4/54 : FROM kong/kong-build-tools:apk-1.8.3 as APK
+ ---> 0fd60fd4cd49
+Step 5/54 : FROM kong/kong-build-tools:deb-1.8.3 as DEB
+ ---> 2dc332e23ccb
+Step 6/54 : FROM kong/kong-build-tools:rpm-1.8.3 as RPM
+ ---> a0dc908dec90
+Step 7/54 : FROM $PACKAGE_TYPE
+ ---> 2dc332e23ccb
+Step 8/54 : ARG EDITION="community"
+ ---> Using cache
+ ---> e8353002ab34
+Step 9/54 : ENV EDITION $EDITION
+ ---> Using cache
+ ---> 8e7d6ee14595
+Step 10/54 : ARG ENABLE_KONG_LICENSING="true"
+ ---> Using cache
+ ---> c268430b1a1a
+Step 11/54 : ENV ENABLE_KONG_LICENSING $ENABLE_KONG_LICENSING
+ ---> Using cache
+ ---> 123ca0e46cf3
+Step 12/54 : COPY kong/.requirements kong/distribution/ /distribution/
+ ---> Using cache
+ ---> 14ca66f405a6
+Step 13/54 : WORKDIR /distribution
+ ---> Using cache
+ ---> c013c3c5bf51
+Step 14/54 : RUN if [ -f "/distribution/pre-install.sh" ] ; then ./pre-install.sh; fi
+ ---> Using cache
+ ---> 20ec9848f323
+Step 15/54 : ARG KONG_NGINX_MODULE=master
+ ---> Using cache
+ ---> db5f048f7b79
+Step 16/54 : ARG RESTY_VERSION=1.21.4.1
+ ---> Using cache
+ ---> 03524ef3f282
+Step 17/54 : LABEL resty_version="${RESTY_VERSION}"
+ ---> Using cache
+ ---> 90fc31af5df2
+Step 18/54 : ARG RESTY_OPENSSL_VERSION=1.1.1k
+ ---> Using cache
+ ---> 06c9272f6285
+Step 19/54 : LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
+ ---> Using cache
+ ---> 5a455542d992
+Step 20/54 : ARG KONG_OPENSSL_VERSION=1.1.0
+ ---> Using cache
+ ---> 3473ae6ed02d
+Step 21/54 : LABEL kong_openssl_version="${KONG_OPENSSL_VERSION}"
+ ---> Using cache
+ ---> 7fa40390892d
+Step 22/54 : ARG RESTY_BORINGSSL_VERSION=0
+ ---> Using cache
+ ---> b6eba4807b01
+Step 23/54 : LABEL resty_boringssl_version="${RESTY_BORINGSSL_VERSION}"
+ ---> Using cache
+ ---> 39af8a3b9fa2
+Step 24/54 : ARG SSL_PROVIDER=openssl
+ ---> Using cache
+ ---> a27f63d5fa36
+Step 25/54 : LABEL ssl_provider="${SSL_PROVIDER}"
+ ---> Using cache
+ ---> f3e40dbc49b8
+Step 26/54 : ARG RESTY_PCRE_VERSION=8.44
+ ---> Using cache
+ ---> 69d854ab0f6b
+Step 27/54 : LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
+ ---> Using cache
+ ---> db4d73279a00
+Step 28/54 : ARG RESTY_LUAROCKS_VERSION=3.7.0
+ ---> Using cache
+ ---> 5c03f6eadfbd
+Step 29/54 : LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
+ ---> Using cache
+ ---> e484677eee2d
+Step 30/54 : ARG RESTY_LMDB=0
+ ---> Using cache
+ ---> 47aaefd9371d
+Step 31/54 : LABEL resty_lmdb="${RESTY_LMDB}"
+ ---> Using cache
+ ---> c40108379223
+Step 32/54 : ARG RESTY_WEBSOCKET=0
+ ---> Using cache
+ ---> c504e5dd11d9
+Step 33/54 : LABEL resty_websocket="${RESTY_WEBSOCKET}"
+ ---> Using cache
+ ---> 37f63c3c3eec
+Step 34/54 : ARG RESTY_EVENTS=0
+ ---> Using cache
+ ---> 22e8c0f93db3
+Step 35/54 : LABEL resty_events="${RESTY_EVENTS}"
+ ---> Using cache
+ ---> 5ac6d015a07b
+Step 36/54 : ARG ATC_ROUTER=0
+ ---> Using cache
+ ---> 7d129abde90a
+Step 37/54 : LABEL atc_router="${ATC_ROUTER}"
+ ---> Using cache
+ ---> 01745bdaa7d4
+Step 38/54 : COPY openresty-build-tools /tmp/openresty-build-tools
+ ---> Using cache
+ ---> b36209946655
+Step 39/54 : COPY openresty-patches /tmp/openresty-patches
+ ---> Using cache
+ ---> 9288e974a253
+Step 40/54 : COPY build-openresty.sh /tmp/build-openresty.sh
+ ---> Using cache
+ ---> fd767c1ae763
+Step 41/54 : ARG OPENRESTY_PATCHES=1
+ ---> Using cache
+ ---> 440e025b8fe7
+Step 42/54 : ENV OPENRESTY_PATCHES="${OPENRESTY_PATCHES}"
+ ---> Using cache
+ ---> db652188737d
+Step 43/54 : COPY lua-kong-nginx-module /distribution/lua-kong-nginx-module
+ ---> Using cache
+ ---> 19762e0234b2
+Step 44/54 : COPY lua-resty-lmdb /distribution/lua-resty-lmdb
+ ---> Using cache
+ ---> cede07a609a2
+Step 45/54 : ARG DEBUG=0
+ ---> Using cache
+ ---> 474a4d48cc2c
+Step 46/54 : ENV DEBUG $DEBUG
+ ---> Using cache
+ ---> 8883039e4a7b
+Step 47/54 : RUN /tmp/build-openresty.sh
+ ---> Using cache
+ ---> 9e9b7597879d
+Step 48/54 : RUN sed -i 's/\/tmp\/build//' `grep -l -I -r '\/tmp\/build' /tmp/build/` || true
+ ---> Using cache
+ ---> 0ce521b80576
+Step 49/54 : COPY kong /kong
+ ---> Using cache
+ ---> 75156ca83fca
+Step 50/54 : RUN rm -rf /distribution/*
+ ---> Using cache
+ ---> 8fadfc393657
+Step 51/54 : COPY kong/.requirements kong/distribution/ /distribution/
+ ---> Using cache
+ ---> 432daa2f10e3
+Step 52/54 : WORKDIR /distribution
+ ---> Using cache
+ ---> 0bd553ec1aca
+Step 53/54 : ENV ENABLE_KONG_LICENSING=false
+ ---> Using cache
+ ---> a5ff55671c1f
+Step 54/54 : RUN if [ -f "/distribution/post-install.sh" ] ; then export GITHUB_TOKEN=`cat /run/secrets/github-token` && ./post-install.sh; fi
+ ---> Using cache
+ ---> ee3ebf9c8ce8
+[Warning] One or more build-args [BUILDKIT_INLINE_CACHE TARGETPLATFORM] were not consumed
+Successfully built ee3ebf9c8ce8
+Successfully tagged kong-build-local-arm64:openresty-deb-f23863f-f5f1b342c66db6b95cd7b389db781bf1b4b63519f2d1be80be251f171cf3f8dc10-0-openssl
+Sending build context to Docker daemon  88.09MB
+Step 1/17 : ARG PACKAGE_TYPE
+Step 2/17 : ARG DOCKER_OPENRESTY_SUFFIX
+Step 3/17 : ARG DOCKER_REPOSITORY
+Step 4/17 : FROM ${DOCKER_REPOSITORY}:openresty-${PACKAGE_TYPE}-${DOCKER_OPENRESTY_SUFFIX}
+ ---> ee3ebf9c8ce8
+Step 5/17 : ARG ENABLE_LJBC=
+ ---> Using cache
+ ---> fcb681766e1b
+Step 6/17 : ENV ENABLE_LJBC $ENABLE_LJBC
+ ---> Using cache
+ ---> 69d5f888d59b
+Step 7/17 : ARG SSL_PROVIDER
+ ---> Using cache
+ ---> 30cb4b6d829b
+Step 8/17 : ENV SSL_PROVIDER $SSL_PROVIDER
+ ---> Using cache
+ ---> a7f2d4339058
+Step 9/17 : RUN rm -rf /kong && rm -rf /distribution/*
+ ---> Using cache
+ ---> ad66b4c28e5e
+Step 10/17 : COPY kong /kong
+ ---> Using cache
+ ---> d619c5ec8ea7
+Step 11/17 : COPY kong/.requirements kong/distribution/ /distribution/
+ ---> Using cache
+ ---> 096cf586d620
+Step 12/17 : WORKDIR /distribution
+ ---> Using cache
+ ---> 83359f9b47db
+Step 13/17 : RUN if [ -f "/distribution/post-install.sh" ] ; then export GITHUB_TOKEN=`cat /run/secrets/github-token` && ./post-install.sh; fi
+ ---> Using cache
+ ---> b906b3f535a2
+Step 14/17 : WORKDIR /kong
+ ---> Using cache
+ ---> ca9a4decd7fd
+Step 15/17 : COPY openresty-build-tools/common.sh /common.sh
+ ---> Using cache
+ ---> 4418d1c77181
+Step 16/17 : COPY build-kong.sh /build-kong.sh
+ ---> Using cache
+ ---> 0e4667b54a6b
+Step 17/17 : RUN /build-kong.sh
+ ---> Using cache
+ ---> f599e5756038
+[Warning] One or more build-args [BUILDKIT_INLINE_CACHE TARGETPLATFORM] were not consumed
+Successfully built f599e5756038
+Successfully tagged kong-build-local-arm64:kong-deb-f23863f10-3.9.1-b724fc7-0-openssl
+rm github-token
+Sending build context to Docker daemon  88.09MB
+Step 1/38 : ARG PACKAGE_TYPE
+Step 2/38 : ARG DOCKER_KONG_SUFFIX
+Step 3/38 : ARG KONG_SHA
+Step 4/38 : ARG DOCKER_REPOSITORY
+Step 5/38 : FROM ${DOCKER_REPOSITORY}:kong-${PACKAGE_TYPE}-${DOCKER_KONG_SUFFIX} as KONG
+ ---> f599e5756038
+Step 6/38 : FROM kong/fpm:0.5.1 as FPM
+ ---> 812c63dbb1d5
+Step 7/38 : COPY --from=KONG /tmp/build /tmp/build
+ ---> Using cache
+ ---> c53ab23f3026
+Step 8/38 : COPY fpm-entrypoint.sh sign-rpm.exp .rpmmacros /
+ ---> Using cache
+ ---> 1f7b8c7dbf92
+Step 9/38 : COPY after-install.sh /after-install.sh
+ ---> Using cache
+ ---> dd2d5b02031c
+Step 10/38 : COPY .rpmmacros /root/.rpmmacros
+ ---> Using cache
+ ---> 20fbab7dfaa1
+Step 11/38 : ARG PRIVATE_KEY_FILE
+ ---> Using cache
+ ---> 3a71a99f2697
+Step 12/38 : COPY ${PRIVATE_KEY_FILE} /kong.private.asc
+ ---> Using cache
+ ---> 2d9514410d2e
+Step 13/38 : ARG PRIVATE_KEY_PASSPHRASE
+ ---> Using cache
+ ---> 21916a562393
+Step 14/38 : ENV PRIVATE_KEY_PASSPHRASE ${PRIVATE_KEY_PASSPHRASE}
+ ---> Using cache
+ ---> 0ef2e1bffecc
+Step 15/38 : ARG RESTY_IMAGE_BASE="ubuntu"
+ ---> Using cache
+ ---> e8068f97e6b9
+Step 16/38 : ARG RESTY_IMAGE_TAG="18.04"
+ ---> Using cache
+ ---> d310413c068e
+Step 17/38 : ARG PACKAGE_TYPE
+ ---> Using cache
+ ---> 81d7bbcceb43
+Step 18/38 : ARG KONG_VERSION
+ ---> Using cache
+ ---> dd9dbfaae0eb
+Step 19/38 : ARG KONG_RELEASE_LABEL
+ ---> Using cache
+ ---> bdb2accbfda3
+Step 20/38 : ARG KONG_PACKAGE_NAME
+ ---> Using cache
+ ---> dac9aa03d9c2
+Step 21/38 : ARG TARGETPLATFORM
+ ---> Using cache
+ ---> 13dfa52a5f7a
+Step 22/38 : ENV TARGETPLATFORM=${TARGETPLATFORM}
+ ---> Using cache
+ ---> 5e07c40f7265
+Step 23/38 : ARG TARGETPLATFORM
+ ---> Using cache
+ ---> 21f26e440e57
+Step 24/38 : ENV TARGETPLATFORM=${TARGETPLATFORM}
+ ---> Using cache
+ ---> 64a181baa70b
+Step 25/38 : ARG PACKAGE_CONFLICTS="kong-enterprise-edition"
+ ---> Using cache
+ ---> a8d0ebdfcbb4
+Step 26/38 : ENV PACKAGE_CONFLICTS $PACKAGE_CONFLICTS
+ ---> Using cache
+ ---> aa9f99ed142b
+Step 27/38 : ARG PACKAGE_PROVIDES="kong-community-edition"
+ ---> Using cache
+ ---> ea2aba91a600
+Step 28/38 : ENV PACKAGE_PROVIDES $PACKAGE_PROVIDES
+ ---> Using cache
+ ---> 04ddd39e044c
+Step 29/38 : ARG PACKAGE_REPLACES="kong-community-edition"
+ ---> Using cache
+ ---> abf7b3ccd647
+Step 30/38 : ENV PACKAGE_REPLACES $PACKAGE_REPLACES
+ ---> Using cache
+ ---> 3adfb20c4787
+Step 31/38 : ARG SSL_PROVIDER
+ ---> Using cache
+ ---> a7e19f8a6584
+Step 32/38 : ENV SSL_PROVIDER $SSL_PROVIDER
+ ---> Using cache
+ ---> 88c99f97c70a
+Step 33/38 : RUN mkdir -p /tmp/build/lib/systemd/system/
+ ---> Using cache
+ ---> 2510d0bceab5
+Step 34/38 : COPY kong.service /tmp/build/lib/systemd/system/kong.service
+ ---> Using cache
+ ---> 2882e3a4a3a6
+Step 35/38 : COPY kong.logrotate /tmp/build/etc/kong/kong.logrotate
+ ---> Using cache
+ ---> c297470dfbfa
+Step 36/38 : RUN /fpm-entrypoint.sh
+ ---> Using cache
+ ---> f9ae7deb7de9
+Step 37/38 : FROM alpine
+ ---> 2ffb2ff4aab3
+Step 38/38 : COPY --from=FPM /output /output
+ ---> 9c05cd04a7fd
+[Warning] One or more build-args [EDITION] were not consumed
+Successfully built 9c05cd04a7fd
+Successfully tagged kong-build-local-arm64:kong-packaged-deb-f23863f10-3.9.1-b724fc7-0-openssl
+docker run -d --rm --name output kong-build-local-arm64:kong-packaged-deb-$(git rev-parse --short HEAD)10-3.9.1-$(git --git-dir=/tmp/kong-source-391-arm64/.git rev-parse --short HEAD)-0-openssl tail -f /dev/null
+e8de7d0e142da61c15eb71ff228f075deeeda4e5d988fac8e404429c48107d57
+docker cp output:/output/ output
+docker stop output
+output
+mv output/output/*.deb* output/
+rm -rf output/*/
+Packaged Kong:
+ls -al output/
+total 112632
+drwxr-xr-x@  4 suriyasiangsai  wheel       128 May 26 02:35 .
+drwxr-xr-x@ 38 suriyasiangsai  wheel      1216 May 26 02:35 ..
+-rwxr-xr-x@  1 suriyasiangsai  wheel        71 May 26 01:03 .gitignore
+-rw-r--r--@  1 suriyasiangsai  wheel  57661072 May 26 02:19 kong-3.9.1.26.04.arm64.deb
+/tmp/kong-build-tools-391-arm64/output/kong-3.9.1.26.04.arm64.deb -> /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.1.26.04.arm64.deb
+[INFO]  Build complete! Packages:
+total 365856
+-rw-r--r--@ 1 suriyasiangsai  staff    34M Apr 20 18:56 kong-3.9.1.22.04.amd64.deb
+-rw-r--r--@ 1 suriyasiangsai  staff    35M Apr 20 19:00 kong-3.9.1.22.04.arm64.deb
+-rw-r--r--@ 1 suriyasiangsai  staff    54M May 26 02:07 kong-3.9.1.26.04.amd64.deb
+-rw-r--r--@ 1 suriyasiangsai  staff    55M May 26 02:35 kong-3.9.1.26.04.arm64.deb

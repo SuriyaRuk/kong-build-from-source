@@ -11,7 +11,7 @@ set -euo pipefail
 # ─── Versions ─────────────────────────────────────────────────────────────────
 KONG_VERSION="3.9.1"
 KONG_TAG="3.9.1"
-RESTY_VERSION="1.29.2.3"
+RESTY_VERSION="1.29.2.5"
 # Kong 3.9.1's .requirements uses `LUAROCKS=` but the Makefile greps for
 # `RESTY_LUAROCKS_VERSION=` → resolves empty → build-openresty.sh passes
 # `--luarocks` with no value, which eats the next flag and fails the build.
@@ -45,7 +45,7 @@ OUTPUT_DIR="${SCRIPT_DIR}/output"
 
 # ─── Build settings ───────────────────────────────────────────────────────────
 RESTY_IMAGE_BASE="ubuntu"
-RESTY_IMAGE_TAG="22.04"
+RESTY_IMAGE_TAG="26.04"
 PACKAGE_TYPE="deb"
 # Use a plain local name (no registry prefix).
 # If DOCKER_REPOSITORY has a hostname (e.g. ghcr.io/...), BuildKit always tries
@@ -343,20 +343,24 @@ fi
 
 # ─── Patch H: add disable_http2_alpn to ngx_http_lua_ssl_ctx_t ───────────────
 # lua-kong-nginx-module (Kong 3.9.1, commit ddc1f95) calls cctx->disable_http2_alpn
-# but OpenResty 1.29.2.3 bundles ngx_lua-0.10.30rc2 whose ngx_http_lua_ssl_ctx_t
+# but OpenResty 1.29.2.5 bundles ngx_lua-0.10.31rc2 whose ngx_http_lua_ssl_ctx_t
 # does not have this bit-field.  Result: OpenResty fails to compile, nginx is
 # never installed to /tmp/build, and luarocks configure later can't find luajit.
-# Fix: write a patch file into the 1.29.2.3 patches directory so kong-ngx-build
+# Fix: write a patch file into the 1.29.2.5 patches directory so kong-ngx-build
 # (OPENRESTY_PATCHES=1) applies it before running ./configure.
-PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.29.2.3"
+# NOTE: kong-ngx-build applies the patch with `patch -p1` from the bundle dir, so
+# the path inside the patch header MUST match the bundled ngx_lua directory name
+# (ngx_lua-0.10.31rc2 in OpenResty 1.29.2.5 — not 0.10.30rc2 as in 1.29.2.3).
+PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.29.2.5"
 mkdir -p "${PATCHES_DIR}"
-if true; then
-  PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.30rc2_01-add-disable-http2-alpn.patch"
-  if [ ! -f "${PATCH_FILE}" ]; then
-    log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.3 ..."
-    cat > "${PATCH_FILE}" << 'PATCHEOF'
---- a/ngx_lua-0.10.30rc2/src/ngx_http_lua_ssl.h
-+++ b/ngx_lua-0.10.30rc2/src/ngx_http_lua_ssl.h
+# Remove any stale patch targeting the old ngx_lua-0.10.30rc2 dir; otherwise the
+# kong-ngx-build glob still picks it up and fails with "can't find file to patch".
+rm -f "${PATCHES_DIR}"/ngx_lua-0.10.30rc2_*.patch
+PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.31rc2_01-add-disable-http2-alpn.patch"
+log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.5 (ngx_lua-0.10.31rc2) ..."
+cat > "${PATCH_FILE}" << 'PATCHEOF'
+--- a/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
++++ b/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
 @@ -48,6 +48,7 @@
      unsigned                 entered_client_hello_handler:1;
      unsigned                 entered_cert_handler:1;
@@ -366,11 +370,7 @@ if true; then
      unsigned                 entered_proxy_ssl_cert_handler:1;
      unsigned                 entered_proxy_ssl_verify_handler:1;
 PATCHEOF
-    log "  -> patch written: ${PATCH_FILE}"
-  else
-    log "  -> disable_http2_alpn patch already present, skipping"
-  fi
-fi
+log "  -> patch written: ${PATCH_FILE}"
 
 # ─── Patch I: fix 'set -e/' typo in kong-ngx-build ───────────────────────────
 # After trying the primary LuaRocks download URL, the script does `set +e` and
@@ -663,11 +663,22 @@ if [ "${AVAIL_GB}" -lt 8 ]; then
   log "         Run: docker system prune -af   to free more space before retrying."
 fi
 
-# ─── 7b_env. Use buildx with --load so intermediate images land in local daemon ──
-# Docker 23+ routes 'docker build' through buildx by default. Without --load,
-# built images stay in buildx cache and are invisible to 'docker run'.
-# DOCKER_BUILDKIT=0 is kept for compatibility but buildx build --load is used
-# explicitly via DOCKER_COMMAND to guarantee local daemon availability.
+# ─── 7b_env. Use the legacy builder so intermediate images land in local daemon ──
+# DOCKER_BUILDKIT=0 forces the classic (non-buildx) builder. The classic builder
+# always stores built images directly in the local daemon, so the
+# `FROM kong-build-local-amd64:openresty-...` reference in Dockerfile.kong resolves
+# locally. This mirrors the proven arm64 build path exactly (only the platform
+# differs). DOCKER_DEFAULT_PLATFORM=linux/amd64 makes every intermediate image
+# build for amd64 via QEMU emulation on this arm64 host.
+#
+# NOTE: We deliberately do NOT use `docker buildx build --load` here. buildx runs
+# on BuildKit, whose FROM resolution does not reliably see classic-daemon images;
+# when the openresty image isn't found it falls back to pulling
+# docker.io/library/kong-build-local-amd64:openresty-... which fails with
+# "pull access denied, repository does not exist". The upstream Makefile recipe
+# (actual-build-kong) also chains the kong build after build-openresty with `;`
+# instead of `&&`, so a failed/unloaded openresty image still triggers the kong
+# build and surfaces as that confusing pull error.
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 export DOCKER_BUILDKIT=0
 
@@ -721,13 +732,11 @@ log "  DOCKER_REPOSITORY   = ${DOCKER_REPOSITORY}"
 log ""
 
 # Pass TARGETPLATFORM=linux/amd64 so fpm-entrypoint.sh names the .deb correctly.
-# --load is required with Docker 23+ (buildx default) so the built image is stored
-# in the local daemon and the subsequent `docker run` step can find it.
-# --context=default + --builder default pins to the local Docker daemon so
-# locally-built intermediate images (e.g. kong-build-local-amd64:openresty-...)
-# are always resolved correctly, regardless of which Docker context or buildx
-# builder is currently active.
-LOCAL_DOCKER_CMD="docker --context=default buildx build --builder default --load --build-arg TARGETPLATFORM=${TARGET_PLATFORM}"
+# Use the classic builder (DOCKER_BUILDKIT=0 set above): every intermediate image
+# lands in the local daemon, so the openresty image built by `make build-openresty`
+# is found when Dockerfile.kong does `FROM kong-build-local-amd64:openresty-...`.
+# This is identical to the working arm64 path, just targeting linux/amd64.
+LOCAL_DOCKER_CMD="docker build --build-arg TARGETPLATFORM=${TARGET_PLATFORM}"
 
 make -C "${BUILD_TOOLS_DIR}" package-kong \
   KONG_SOURCE_LOCATION="${KONG_SOURCE_DIR}" \

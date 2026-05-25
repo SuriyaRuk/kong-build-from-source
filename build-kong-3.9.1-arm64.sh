@@ -15,7 +15,7 @@ set -euo pipefail
 # ─── Versions ─────────────────────────────────────────────────────────────────
 KONG_VERSION="3.9.1"
 KONG_TAG="3.9.1"
-RESTY_VERSION="1.29.2.3"
+RESTY_VERSION="1.29.2.5"
 RESTY_LUAROCKS_VERSION="3.11.1"
 RESTY_OPENSSL_VERSION="3.5.6"
 KONG_OPENSSL_VERSION="0"
@@ -30,7 +30,7 @@ OUTPUT_DIR="${SCRIPT_DIR}/output"
 
 # ─── Build settings ───────────────────────────────────────────────────────────
 RESTY_IMAGE_BASE="ubuntu"
-RESTY_IMAGE_TAG="20.04"
+RESTY_IMAGE_TAG="26.04"
 PACKAGE_TYPE="deb"
 # Use a different local name from amd64 build to avoid tag conflicts
 DOCKER_REPOSITORY="kong-build-local-arm64"
@@ -42,10 +42,26 @@ TARGET_ARCH="arm64"
 log()  { echo "[INFO]  $*"; }
 err()  { echo "[ERROR] $*" >&2; exit 1; }
 
-# ─── 0. Set up QEMU for arm64 emulation ───────────────────────────────────────
-log "Setting up QEMU for arm64 emulation ..."
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-log "  -> QEMU arm64 registered"
+# ─── 0. Set up QEMU for arm64 emulation (only when cross-building) ─────────────
+# Do NOT run 'multiarch/qemu-user-static --reset': it wipes all binfmt_misc
+# handlers and registers a qemu interpreter for the host's OWN architecture
+# (e.g. 'qemu-aarch64-static as binfmt interpreter for aarch64'). On an arm64
+# host that forces every native arm64 binary — including containerd's shim —
+# through QEMU, which then fails with:
+#   failed to start shim: fork/exec /usr/local/bin/containerd-shim-runc-v2: exec format error
+# OrbStack/Docker Desktop already provide native cross-arch emulation, so arm64
+# builds on an arm64 host need no QEMU registration at all.
+HOST_ARCH="$(uname -m)"
+case "${HOST_ARCH}" in
+  arm64|aarch64)
+    log "Host is ${HOST_ARCH}; arm64 build is native — skipping QEMU registration." ;;
+  *)
+    log "Host is ${HOST_ARCH}; registering QEMU for arm64 emulation via tonistiigi/binfmt ..."
+    # --install arm64 registers ONLY the foreign aarch64 handler and leaves the
+    # host's native binfmt entry untouched.
+    docker run --rm --privileged tonistiigi/binfmt --install arm64
+    log "  -> QEMU arm64 registered" ;;
+esac
 
 # Force all docker commands to build for arm64
 export DOCKER_DEFAULT_PLATFORM=linux/arm64
@@ -285,14 +301,20 @@ PYEOF
 fi
 
 # ─── Patch H: add disable_http2_alpn to ngx_http_lua_ssl_ctx_t ───────────────
-PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.29.2.3"
+# OpenResty 1.29.2.5 bundles ngx_lua-0.10.31rc2 (1.29.2.3 bundled 0.10.30rc2).
+# kong-ngx-build applies this with `patch -p1` from the bundle dir, so the path
+# inside the patch header MUST match the bundled directory name, or patch fails
+# with "can't find file to patch".
+PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.29.2.5"
 mkdir -p "${PATCHES_DIR}"
-PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.30rc2_01-add-disable-http2-alpn.patch"
-if [ ! -f "${PATCH_FILE}" ]; then
-  log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.3 ..."
-  cat > "${PATCH_FILE}" << 'PATCHEOF'
---- a/ngx_lua-0.10.30rc2/src/ngx_http_lua_ssl.h
-+++ b/ngx_lua-0.10.30rc2/src/ngx_http_lua_ssl.h
+# Drop any stale patch targeting the old ngx_lua-0.10.30rc2 dir; the kong-ngx-build
+# glob would otherwise still apply it and fail.
+rm -f "${PATCHES_DIR}"/ngx_lua-0.10.30rc2_*.patch
+PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.31rc2_01-add-disable-http2-alpn.patch"
+log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.5 (ngx_lua-0.10.31rc2) ..."
+cat > "${PATCH_FILE}" << 'PATCHEOF'
+--- a/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
++++ b/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
 @@ -48,6 +48,7 @@
      unsigned                 entered_client_hello_handler:1;
      unsigned                 entered_cert_handler:1;
@@ -302,10 +324,7 @@ if [ ! -f "${PATCH_FILE}" ]; then
      unsigned                 entered_proxy_ssl_cert_handler:1;
      unsigned                 entered_proxy_ssl_verify_handler:1;
 PATCHEOF
-  log "  -> patch written: ${PATCH_FILE}"
-else
-  log "  -> disable_http2_alpn patch already present, skipping"
-fi
+log "  -> patch written: ${PATCH_FILE}"
 
 # ─── Patch I: fix 'set -e/' typo in kong-ngx-build ───────────────────────────
 NGX_BUILD_FILE="${BUILD_TOOLS_DIR}/openresty-build-tools/kong-ngx-build"
@@ -362,8 +381,23 @@ PYEOF
 fi
 
 # ─── Patch J: pre-install Kong deps via per-author luarocks.org manifests ─────
+# The global luarocks.org manifest-5.1 has grown beyond LuaJIT's 65536-constant
+# limit even after clearing /var/cache/luarocks/.  Per-author manifests at
+# luarocks.org/manifests/<user>/ each contain only that user's packages and stay
+# well under the limit.  Install each of the 33 Kong deps individually from its
+# author's manifest, then build Kong with --deps-mode none.
+#
+# Each install_rock MUST pass YAML_LIBDIR/YAML_INCDIR (plus the other DIR hints):
+# lyaml's rockspec runs luarocks' own libyaml probe, which only searches system
+# paths (/usr/lib/aarch64-linux-gnu, /lib, …).  libyaml is built into
+# /tmp/build/usr/local/kong/lib earlier in the build, so without these hints the
+# lyaml install fails with "Could not find library file for YAML".
 BUILD_KONG_SH="${BUILD_TOOLS_DIR}/build-kong.sh"
 if [ -f "${BUILD_KONG_SH}" ]; then
+  # Restore pristine build-kong.sh first: a previous run may have written an
+  # older install_rock block (missing the YAML dir hints) whose marker would
+  # otherwise make this patch skip and leave the broken version in place.
+  git -C "${BUILD_TOOLS_DIR}" checkout -- build-kong.sh 2>/dev/null || true
   log "Patching build-kong.sh: pre-install deps via per-author manifests + --deps-mode none"
   python3 - "${BUILD_KONG_SH}" << 'PYEOF'
 import sys, pathlib
@@ -371,7 +405,7 @@ import sys, pathlib
 f = pathlib.Path(sys.argv[1])
 text = f.read_text()
 
-MARKER = 'install_rock kong          lua_system_constants'
+MARKER = 'install_rock '
 if MARKER in text:
     print("  -> already patched, skipping")
     sys.exit(0)
@@ -388,13 +422,33 @@ OLD = (
 )
 
 NEW = (
+    '  # Install each Kong dep via its author\'s per-user luarocks.org manifest.\n'
+    '  # The global manifest-5.1 exceeds LuaJIT\'s 65536-constant limit.\n'
     '  install_rock() {\n'
-    '    local author=$1 rock=$2 version=$3\n'
-    '    with_backoff /usr/local/bin/luarocks install \\\n'
-    '      --server "https://luarocks.org/manifests/${author}" \\\n'
-    '      "${rock}" "${version}"\n'
+    '    local author="$1" name="$2" ver="$3"\n'
+    '    with_backoff /usr/local/bin/luarocks install "$name" "$ver" \\\n'
+    '      --server="https://luarocks.org/manifests/$author" \\\n'
+    '      --deps-mode none \\\n'
+    '      CRYPTO_DIR=/usr/local/kong \\\n'
+    '      OPENSSL_DIR=/usr/local/kong \\\n'
+    '      YAML_LIBDIR=/tmp/build/usr/local/kong/lib \\\n'
+    '      YAML_INCDIR=/tmp/yaml \\\n'
+    '      EXPAT_DIR=/usr/local/kong \\\n'
+    '      LIBXML2_DIR=/usr/local/kong \\\n'
+    '      CFLAGS="-L/tmp/build/usr/local/kong/lib -Wl,-rpath,/usr/local/kong/lib -O2 -std=gnu99 -fPIC"\n'
     '  }\n'
-    '\n'
+    '  install_rock kikito        inspect               3.1.3\n'
+    '  install_rock brunoos       luasec                1.3.2\n'
+    '  install_rock lunarmodules  luasocket             3.0rc1\n'
+    '  install_rock tieske        penlight              1.14.0\n'
+    '  install_rock pintsized     lua-resty-http        0.17.2\n'
+    '  install_rock thibaultcha   lua-resty-jit-uuid    0.0.7\n'
+    '  install_rock hamish        lua-ffi-zlib          0.6\n'
+    '  install_rock kong          multipart             0.5.9\n'
+    '  install_rock kong          version               1.0.1\n'
+    '  install_rock kong          kong-lapis            1.16.0.1\n'
+    '  install_rock kong          kong-pgmoon           1.16.2\n'
+    '  install_rock daurnimator   luatz                 0.4\n'
     '  install_rock kong          lua_system_constants  0.1.4\n'
     '  install_rock gvvaughan     lyaml                 6.2.8\n'
     '  install_rock tieske        luasyslog             2.0.1\n'
@@ -468,6 +522,29 @@ DUMMY_KEY="${BUILD_TOOLS_DIR}/kong.private.gpg-key.asc"
 if [ ! -f "${DUMMY_KEY}" ]; then
   log "Creating empty placeholder ${DUMMY_KEY} ..."
   touch "${DUMMY_KEY}"
+fi
+
+# ─── Force arm64 base for the package wrapper stage ───────────────────────────
+# dockerfiles/Dockerfile.package's final stage is `FROM alpine`. The legacy
+# docker builder (DOCKER_BUILDKIT=0, used by this script) ignores
+# DOCKER_DEFAULT_PLATFORM for an already-cached base and reuses whatever
+# `alpine:latest` is in the local image store. If that cached alpine is amd64,
+# the resulting kong-packaged image is amd64 — even though the kong/openresty
+# stages are arm64. Then `docker run` (with DOCKER_DEFAULT_PLATFORM=linux/arm64)
+# can't find an arm64 variant locally and tries to PULL ${DOCKER_REPOSITORY},
+# failing with "pull access denied". Pre-pull arm64 alpine so the wrapper stage
+# is built for arm64 and the local tag matches the run platform.
+log "Pre-pulling arm64 alpine for the package wrapper stage ..."
+docker pull --platform="${TARGET_PLATFORM}" alpine:latest
+
+# Drop any stale packaged image so the run picks up the freshly built arm64 one.
+STALE_PKG=$(docker images --format '{{.Repository}}:{{.Tag}}' \
+  | grep "^${DOCKER_REPOSITORY}:kong-packaged-" || true)
+if [ -n "${STALE_PKG}" ]; then
+  log "Removing stale packaged image(s):"
+  echo "${STALE_PKG}" | while read -r t; do
+    [ -n "${t}" ] && docker rmi -f "${t}" 2>/dev/null || true
+  done
 fi
 
 # ─── Run make package-kong for arm64 ──────────────────────────────────────────
