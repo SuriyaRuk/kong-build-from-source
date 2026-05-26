@@ -29,8 +29,9 @@ RUN apt-get update && \
 FROM secure-base AS kong-install
 
 # TARGETARCH is automatically set by BuildKit to amd64 or arm64 based on --platform.
-# Both output/kong-3.9.1.20.04.amd64.deb and output/kong-3.9.1.20.04.arm64.deb
-# must exist before running docker buildx build --platform linux/amd64,linux/arm64.
+# Both output/kong-3.9.1-openresty1.29.2.5.amd64.deb and
+# output/kong-3.9.1-openresty1.29.2.5.arm64.deb must exist before running
+# docker buildx build --platform linux/amd64,linux/arm64.
 ARG TARGETARCH
 
 RUN apt-get update && \
@@ -51,9 +52,9 @@ RUN apt-get update && \
 RUN userdel -r ubuntu 2>/dev/null || true && \
   useradd --uid 1000 --user-group --no-create-home kong
 
-# Copy and install local .deb — filename matches TARGETARCH (amd64 or arm64)
-#COPY output/kong-3.9.1.22.04.${TARGETARCH}.deb /tmp/kong.deb
-COPY output/kong-3.9.1.22.04.${TARGETARCH}.deb /tmp/kong.deb
+# Copy and install local .deb — filename embeds the OpenResty version and matches
+# TARGETARCH (amd64 or arm64): kong-3.9.1-openresty1.29.2.5.<arch>.deb
+COPY output/kong-3.9.1-openresty1.29.2.5.${TARGETARCH}.deb /tmp/kong.deb
 RUN dpkg -i /tmp/kong.deb && \
   rm /tmp/kong.deb && \
   rm -rf /var/lib/apt/lists/*
@@ -118,10 +119,10 @@ WORKDIR /usr/local/kong
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["kong", "docker-start"]
 
-LABEL maintainer="Kong Docker Maintainers <docker@konghq.com> (@team-gateway-bot)"
-LABEL org.opencontainers.image.version="24.04"
+LABEL maintainer="Kong Docker Maintainers <suriya.ruk@dome.cloud> (@team-gateway-bot)"
+LABEL org.opencontainers.image.version="26.04"
 LABEL security.patched="true"
-LABEL security.patch.date="2026-04-19"
+LABEL security.patch.date="2026-05-26"
 LABEL security.patch.method="base-image-update-with-security-patches"
 LABEL kong.version="3.9.1"
 LABEL description="Kong Gateway 3.9.1 with security patches applied"

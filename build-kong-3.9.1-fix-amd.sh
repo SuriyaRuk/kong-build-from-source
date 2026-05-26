@@ -775,9 +775,18 @@ make -C "${BUILD_TOOLS_DIR}" package-kong \
 
 # ─── 8. Copy output back to script directory ──────────────────────────────────
 mkdir -p "${OUTPUT_DIR}"
-cp -v "${BUILD_TOOLS_DIR}/output/"*.deb "${OUTPUT_DIR}/" 2>/dev/null || \
+# fpm-entrypoint.sh names the package kong-${KONG_VERSION}.${RESTY_IMAGE_TAG}.${arch}.deb.
+# Rename it to embed the OpenResty version so the multi-arch Dockerfile can COPY a
+# stable, OpenResty-versioned filename for both arm64 and amd64.
+ARCH="${TARGET_PLATFORM##*/}"
+DEB_NAME="kong-${KONG_VERSION}-openresty${RESTY_VERSION}.${ARCH}.deb"
+SRC_DEB=$(ls -t "${BUILD_TOOLS_DIR}/output/"*.deb 2>/dev/null | head -n1)
+if [ -n "${SRC_DEB}" ]; then
+  cp -v "${SRC_DEB}" "${OUTPUT_DIR}/${DEB_NAME}"
+else
   cp -v "${BUILD_TOOLS_DIR}/output/"* "${OUTPUT_DIR}/" 2>/dev/null || \
-  log "(no output files found in ${BUILD_TOOLS_DIR}/output/)"
+    log "(no output files found in ${BUILD_TOOLS_DIR}/output/)"
+fi
 
 log "Build complete! Packages:"
 ls -lh "${OUTPUT_DIR}/"
