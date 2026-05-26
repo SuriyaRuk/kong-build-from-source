@@ -644,11 +644,26 @@ else:
 PYEOF
 fi
 
+# ─── Pin BUILD_TOOLS_SHA so all Docker image tags are deterministic ───────────
+# The Makefile derives every image suffix (DOCKER_KONG_SUFFIX, DOCKER_OPENRESTY_SUFFIX,
+# etc.) from `BUILD_TOOLS_SHA=$(git rev-parse --short HEAD)`, declared with `=`
+# (recursively expanded). That command is therefore re-run on *every* reference to
+# the suffix. If HEAD moves between the `docker build -t ...` step and the later
+# `docker run ...` step — e.g. a commit/amend/rebase lands, or git resolves a
+# different repo depending on the recipe's CWD — the run step looks for an image
+# tag that was never created and fails with "pull access denied / Error 125".
+# Compute the SHA once here and pass it as a make command-line override (constant,
+# never re-evaluated) so the build-tag and docker-run steps always agree and the
+# already-built ${BUILD_TOOLS_SHA} images are reused from cache.
+BUILD_TOOLS_SHA="$(git -C "${BUILD_TOOLS_DIR}" rev-parse --short HEAD)"
+log "Pinned BUILD_TOOLS_SHA=${BUILD_TOOLS_SHA} for deterministic image tags"
+
 # ─── Remove stale openresty Docker image so it rebuilds with the new patch ────
 # The openresty image was cached from a previous run in which the OpenResty build
 # silently failed (due to the set -e/ typo).  That cached image has no nginx or
 # luarocks binaries.  Remove it so Docker rebuilds from scratch with Patch H.
 OPENRESTY_SUFFIX_CMD="make -C ${BUILD_TOOLS_DIR} --no-print-directory print-openresty-docker-suffix \
+  BUILD_TOOLS_SHA=${BUILD_TOOLS_SHA} \
   KONG_SOURCE_LOCATION=${KONG_SOURCE_DIR} \
   RESTY_VERSION=${RESTY_VERSION} \
   RESTY_LUAROCKS_VERSION=${RESTY_LUAROCKS_VERSION} \
@@ -732,6 +747,37 @@ if [ ! -f "${DUMMY_KEY}" ]; then
   touch "${DUMMY_KEY}"
 fi
 
+# ─── 7d. Ensure amd64 alpine base for the package wrapper image ──────────────
+# Dockerfile.package's final stage is `FROM alpine` (a throwaway wrapper whose
+# only job is to hold /output so the Makefile can `docker run ... tail -f
+# /dev/null` + `docker cp` the built .deb out). The classic builder
+# (DOCKER_BUILDKIT=0) reuses whatever `alpine:latest` is already cached locally
+# REGARDLESS of DOCKER_DEFAULT_PLATFORM — it only resolves platform on a pull,
+# not for a tag that already exists. On this arm64 host the cached alpine:latest
+# is arm64, so the wrapper image is built arm64 while the rest of the pipeline
+# (openresty, kong-deb, the .deb itself) is correctly amd64.
+#
+# The Makefile then runs `docker run ... kong-packaged-...` under the exported
+# DOCKER_DEFAULT_PLATFORM=linux/amd64, which demands an amd64 wrapper, fails to
+# find one locally, falls back to pulling kong-build-local-amd64 from Docker Hub,
+# and dies with "pull access denied ... Error 125".
+#
+# Pull the amd64 alpine manifest so `alpine:latest` points at the amd64 image;
+# the `FROM alpine` cache key then changes, the wrapper rebuilds as amd64, and
+# the extraction `docker run` finds it. (Mirrors the amd64 kong/fpm:0.5.1 fix.)
+log "Ensuring amd64 alpine base image for the package wrapper ..."
+docker pull --platform=linux/amd64 alpine:latest >/dev/null
+# Drop the stale arm64 wrapper tag so nothing can reuse it as an amd64 image.
+STALE_WRAPPER=$(docker images --format '{{.Repository}}:{{.Tag}}' \
+  | grep "^${DOCKER_REPOSITORY}:kong-packaged-" || true)
+if [ -n "${STALE_WRAPPER}" ]; then
+  STALE_ARCH=$(docker image inspect "${STALE_WRAPPER}" --format '{{.Architecture}}' 2>/dev/null || echo "")
+  if [ "${STALE_ARCH}" != "amd64" ]; then
+    log "Removing stale ${STALE_ARCH:-unknown}-arch wrapper image: ${STALE_WRAPPER}"
+    docker rmi -f "${STALE_WRAPPER}" 2>/dev/null || true
+  fi
+fi
+
 # ─── 8. Run make package-kong ─────────────────────────────────────────────────
 log "Starting Kong amd64 build ..."
 log "  TARGET_PLATFORM     = ${TARGET_PLATFORM}"
@@ -755,6 +801,7 @@ log ""
 LOCAL_DOCKER_CMD="docker build --build-arg TARGETPLATFORM=${TARGET_PLATFORM}"
 
 make -C "${BUILD_TOOLS_DIR}" package-kong \
+  BUILD_TOOLS_SHA="${BUILD_TOOLS_SHA}" \
   KONG_SOURCE_LOCATION="${KONG_SOURCE_DIR}" \
   KONG_VERSION="${KONG_VERSION}" \
   KONG_TAG="${KONG_TAG}" \

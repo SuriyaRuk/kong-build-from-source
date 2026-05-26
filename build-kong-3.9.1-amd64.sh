@@ -88,14 +88,28 @@ fi
 # by enable_keepalive() on the next line anyway.
 KONG_INIT_LUA="${KONG_SOURCE_DIR}/kong/init.lua"
 if [ -f "${KONG_INIT_LUA}" ]; then
-  if grep -q "set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)" "${KONG_INIT_LUA}"; then
-    log "Patching kong/init.lua: remove pool_opts from set_current_peer (API mismatch fix) ..."
-    sed -i 's/local ok, err = set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)/local ok, err = set_current_peer(balancer_data_ip, balancer_data_port)/' \
-      "${KONG_INIT_LUA}"
-    log "  -> patched: set_current_peer(ip, port) [pool_opts removed]"
-  else
-    log "  -> kong/init.lua already patched or pattern changed, skipping"
-  fi
+  log "Patching kong/init.lua: remove pool_opts from set_current_peer (API mismatch fix) ..."
+  # NOTE: use python3 (not `sed -i 's/.../.../'`). On macOS/BSD sed, bare `-i`
+  # consumes the next arg as the backup suffix and the command fails with
+  # "sed: -I or -i may not be used with stdin" → under set -e the whole build
+  # aborts and the patch never lands. python3 is already a hard dep here.
+  python3 - "${KONG_INIT_LUA}" << 'PYEOF'
+import sys, pathlib
+
+f = pathlib.Path(sys.argv[1])
+text = f.read_text()
+
+OLD = "local ok, err = set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)"
+NEW = "local ok, err = set_current_peer(balancer_data_ip, balancer_data_port)"
+
+if OLD in text:
+    f.write_text(text.replace(OLD, NEW, 1))
+    print("  -> patched: set_current_peer(ip, port) [pool_opts removed]")
+elif NEW in text:
+    print("  -> already patched, skipping")
+else:
+    sys.exit("  !! expected set_current_peer(...pool_opts) line not found — upstream layout changed")
+PYEOF
 fi
 
 # ─── 3. Verify .requirements exists ───────────────────────────────────────────
@@ -646,11 +660,26 @@ else:
 PYEOF
 fi
 
+# ─── Pin BUILD_TOOLS_SHA so all Docker image tags are deterministic ───────────
+# The Makefile derives every image suffix (DOCKER_KONG_SUFFIX, DOCKER_OPENRESTY_SUFFIX,
+# etc.) from `BUILD_TOOLS_SHA=$(git rev-parse --short HEAD)`, declared with `=`
+# (recursively expanded). That command is therefore re-run on *every* reference to
+# the suffix. If HEAD moves between the `docker build -t ...` step and the later
+# `docker run ...` step — e.g. a commit/amend/rebase lands, or git resolves a
+# different repo depending on the recipe's CWD — the run step looks for an image
+# tag that was never created and fails with "pull access denied / Error 125".
+# Compute the SHA once here and pass it as a make command-line override (constant,
+# never re-evaluated) so the build-tag and docker-run steps always agree and the
+# already-built ${BUILD_TOOLS_SHA} images are reused from cache.
+BUILD_TOOLS_SHA="$(git -C "${BUILD_TOOLS_DIR}" rev-parse --short HEAD)"
+log "Pinned BUILD_TOOLS_SHA=${BUILD_TOOLS_SHA} for deterministic image tags"
+
 # ─── Remove stale openresty Docker image so it rebuilds with the new patch ────
 # The openresty image was cached from a previous run in which the OpenResty build
 # silently failed (due to the set -e/ typo).  That cached image has no nginx or
 # luarocks binaries.  Remove it so Docker rebuilds from scratch with Patch H.
 OPENRESTY_SUFFIX_CMD="make -C ${BUILD_TOOLS_DIR} --no-print-directory print-openresty-docker-suffix \
+  BUILD_TOOLS_SHA=${BUILD_TOOLS_SHA} \
   KONG_SOURCE_LOCATION=${KONG_SOURCE_DIR} \
   RESTY_VERSION=${RESTY_VERSION} \
   RESTY_LUAROCKS_VERSION=${RESTY_LUAROCKS_VERSION} \
@@ -748,6 +777,7 @@ log ""
 LOCAL_DOCKER_CMD="docker --context=default buildx build --builder default --load --build-arg TARGETPLATFORM=${TARGET_PLATFORM}"
 
 make -C "${BUILD_TOOLS_DIR}" package-kong \
+  BUILD_TOOLS_SHA="${BUILD_TOOLS_SHA}" \
   KONG_SOURCE_LOCATION="${KONG_SOURCE_DIR}" \
   KONG_VERSION="${KONG_VERSION}" \
   KONG_TAG="${KONG_TAG}" \
@@ -768,9 +798,18 @@ make -C "${BUILD_TOOLS_DIR}" package-kong \
 
 # ─── 8. Copy output back to script directory ──────────────────────────────────
 mkdir -p "${OUTPUT_DIR}"
-cp -v "${BUILD_TOOLS_DIR}/output/"*.deb "${OUTPUT_DIR}/" 2>/dev/null || \
+# fpm-entrypoint.sh names the package kong-${KONG_VERSION}.${RESTY_IMAGE_TAG}.${arch}.deb.
+# Rename it to embed the OpenResty version so the multi-arch Dockerfile can COPY a
+# stable, OpenResty-versioned filename for both arm64 and amd64 (matches arm64 build).
+ARCH="${TARGET_PLATFORM##*/}"
+DEB_NAME="kong-${KONG_VERSION}-openresty${RESTY_VERSION}.${ARCH}.deb"
+SRC_DEB=$(ls -t "${BUILD_TOOLS_DIR}/output/"*.deb 2>/dev/null | head -n1)
+if [ -n "${SRC_DEB}" ]; then
+  cp -v "${SRC_DEB}" "${OUTPUT_DIR}/${DEB_NAME}"
+else
   cp -v "${BUILD_TOOLS_DIR}/output/"* "${OUTPUT_DIR}/" 2>/dev/null || \
-  log "(no output files found in ${BUILD_TOOLS_DIR}/output/)"
+    log "(no output files found in ${BUILD_TOOLS_DIR}/output/)"
+fi
 
 log "Build complete! Packages:"
 ls -lh "${OUTPUT_DIR}/"
