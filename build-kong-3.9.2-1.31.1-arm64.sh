@@ -301,20 +301,25 @@ PYEOF
 fi
 
 # ─── Patch H: add disable_http2_alpn to ngx_http_lua_ssl_ctx_t ───────────────
-# OpenResty 1.29.2.5 bundles ngx_lua-0.10.31rc2 (1.29.2.3 bundled 0.10.30rc2).
-# kong-ngx-build applies this with `patch -p1` from the bundle dir, so the path
-# inside the patch header MUST match the bundled directory name, or patch fails
-# with "can't find file to patch".
-PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.29.2.5"
+# OpenResty 1.31.1.1 bundles ngx_lua-0.10.31rc5 (1.29.2.5 bundled 0.10.31rc2).
+# kong-ngx-build applies patches from openresty-patches/patches/<RESTY_VERSION>/
+# with `patch -p1` from the bundle dir, so BOTH the patches subdir AND the path
+# inside the patch header MUST match the current OpenResty/ngx_lua version, or
+# the patch is silently skipped (wrong subdir) / fails with "can't find file to
+# patch" (wrong header path). lua-kong-nginx-module 0.13.2 references
+# cctx->disable_http2_alpn unconditionally, so this field MUST exist or the
+# ngx_http_lua_kong_ssl.c compile fails.
+PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.31.1.1"
 mkdir -p "${PATCHES_DIR}"
-# Drop any stale patch targeting the old ngx_lua-0.10.30rc2 dir; the kong-ngx-build
-# glob would otherwise still apply it and fail.
-rm -f "${PATCHES_DIR}"/ngx_lua-0.10.30rc2_*.patch
-PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.31rc2_01-add-disable-http2-alpn.patch"
-log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.5 (ngx_lua-0.10.31rc2) ..."
+# Drop any stale patch targeting older ngx_lua dirs; the kong-ngx-build glob
+# would otherwise still apply it and fail.
+rm -f "${PATCHES_DIR}"/ngx_lua-0.10.30rc2_*.patch \
+      "${PATCHES_DIR}"/ngx_lua-0.10.31rc2_*.patch
+PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.31rc5_01-add-disable-http2-alpn.patch"
+log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.31.1.1 (ngx_lua-0.10.31rc5) ..."
 cat > "${PATCH_FILE}" << 'PATCHEOF'
---- a/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
-+++ b/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
+--- a/ngx_lua-0.10.31rc5/src/ngx_http_lua_ssl.h
++++ b/ngx_lua-0.10.31rc5/src/ngx_http_lua_ssl.h
 @@ -48,6 +48,7 @@
      unsigned                 entered_client_hello_handler:1;
      unsigned                 entered_cert_handler:1;

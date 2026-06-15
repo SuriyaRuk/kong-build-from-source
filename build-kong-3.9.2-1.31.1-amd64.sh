@@ -342,25 +342,25 @@ PYEOF
 fi
 
 # ─── Patch H: add disable_http2_alpn to ngx_http_lua_ssl_ctx_t ───────────────
-# lua-kong-nginx-module (Kong 3.9.1, commit ddc1f95) calls cctx->disable_http2_alpn
-# but OpenResty 1.29.2.5 bundles ngx_lua-0.10.31rc2 whose ngx_http_lua_ssl_ctx_t
-# does not have this bit-field.  Result: OpenResty fails to compile, nginx is
-# never installed to /tmp/build, and luarocks configure later can't find luajit.
-# Fix: write a patch file into the 1.29.2.5 patches directory so kong-ngx-build
-# (OPENRESTY_PATCHES=1) applies it before running ./configure.
-# NOTE: kong-ngx-build applies the patch with `patch -p1` from the bundle dir, so
-# the path inside the patch header MUST match the bundled ngx_lua directory name
-# (ngx_lua-0.10.31rc2 in OpenResty 1.29.2.5 — not 0.10.30rc2 as in 1.29.2.3).
-PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.29.2.5"
+# OpenResty 1.31.1.1 bundles ngx_lua-0.10.31rc5 (1.29.2.5 bundled 0.10.31rc2).
+# kong-ngx-build applies patches from openresty-patches/patches/<RESTY_VERSION>/
+# with `patch -p1` from the bundle dir, so BOTH the patches subdir AND the path
+# inside the patch header MUST match the current OpenResty/ngx_lua version, or
+# the patch is silently skipped (wrong subdir) / fails with "can't find file to
+# patch" (wrong header path). lua-kong-nginx-module 0.13.2 references
+# cctx->disable_http2_alpn unconditionally, so this field MUST exist or the
+# ngx_http_lua_kong_ssl.c compile fails.
+PATCHES_DIR="${BUILD_TOOLS_DIR}/openresty-patches/patches/1.31.1.1"
 mkdir -p "${PATCHES_DIR}"
-# Remove any stale patch targeting the old ngx_lua-0.10.30rc2 dir; otherwise the
-# kong-ngx-build glob still picks it up and fails with "can't find file to patch".
-rm -f "${PATCHES_DIR}"/ngx_lua-0.10.30rc2_*.patch
-PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.31rc2_01-add-disable-http2-alpn.patch"
-log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.29.2.5 (ngx_lua-0.10.31rc2) ..."
+# Drop any stale patch targeting older ngx_lua dirs; the kong-ngx-build glob
+# would otherwise still apply it and fail.
+rm -f "${PATCHES_DIR}"/ngx_lua-0.10.30rc2_*.patch \
+      "${PATCHES_DIR}"/ngx_lua-0.10.31rc2_*.patch
+PATCH_FILE="${PATCHES_DIR}/ngx_lua-0.10.31rc5_01-add-disable-http2-alpn.patch"
+log "Writing ngx_http_lua_ssl_ctx_t patch for OpenResty 1.31.1.1 (ngx_lua-0.10.31rc5) ..."
 cat > "${PATCH_FILE}" << 'PATCHEOF'
---- a/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
-+++ b/ngx_lua-0.10.31rc2/src/ngx_http_lua_ssl.h
+--- a/ngx_lua-0.10.31rc5/src/ngx_http_lua_ssl.h
++++ b/ngx_lua-0.10.31rc5/src/ngx_http_lua_ssl.h
 @@ -48,6 +48,7 @@
      unsigned                 entered_client_hello_handler:1;
      unsigned                 entered_cert_handler:1;
