@@ -1,0 +1,159 @@
+[INFO]  Host is arm64; registering QEMU for amd64 emulation ...
+{
+  "supported": [
+    "linux/arm64",
+    "linux/amd64",
+    "linux/amd64/v2",
+    "linux/riscv64",
+    "linux/ppc64le",
+    "linux/s390x",
+    "linux/386",
+    "linux/mips64le",
+    "linux/arm/v7",
+    "linux/arm/v6"
+  ],
+  "emulators": [
+    "mac-macho-arm64",
+    "mac-macho-x86_64",
+    "mac-universal-arm64",
+    "mac-universal-x86_64",
+    "qemu-arm",
+    "qemu-i386",
+    "qemu-mips64el",
+    "qemu-ppc64le",
+    "qemu-riscv64",
+    "qemu-s390x",
+    "qemu-x86_64",
+    "rosetta",
+    "rosetta​",
+    "rosetta​​"
+  ]
+}
+[INFO]    -> QEMU amd64 registered
+[INFO]  kong-build-tools already present – pulling latest master ...
+M	dockerfiles/Dockerfile.openresty
+Your branch is up to date with 'origin/master'.
+Already up to date.
+[INFO]  Kong source already present at /tmp/kong-source-392-rpm-amd64
+[INFO]  Patching duplicate healthcheck in test/kong-tests-compose.yaml ...
+[INFO]  Initialising submodules in kong-build-tools ...
+[INFO]  Patching /tmp/kong-build-tools-392-rpm-amd64/openresty-build-tools/kong-ngx-build to support PCRE2 downloads
+[INFO]  Patching Makefile: fix cascade semicolons in actual-build-kong target
+[INFO]  Building amd64 kong/fpm:0.5.1 image ...
+Untagged: kong/fpm:0.5.1
+Deleted: sha256:7c628639326048545db5f541408136e1229610ec2ebf7f30e81398fc2c50efa0
+Deleted: sha256:0517c7179c63ea1b87e29ee914e1c3053ef8d9602b3ebbe0b4b6797eb9a0e4a9
+Deleted: sha256:5185c2874b2254ee9c5b01915f083de554c2af9547fc3f070c7fe3f600f40360
+[INFO]  Ensuring amd64 alpine base image ...
+[INFO]  Starting Kong amd64 RPM build ...
+starting make in kong-build-tools
+docker-compose -f test/kong-tests-compose.yaml down
+docker-compose -f test/kong-tests-compose.yaml rm -f
+docker stop user-validation-tests || true
+docker rm user-validation-tests || true
+docker volume prune -f
+Total reclaimed space: 0B
+rm -rf kong
+rm -rf docker-kong
+rm -rf output/*
+rm -f github-token
+git submodule deinit -f .
+Cleared directory 'lua-kong-nginx-module'
+Submodule 'lua-kong-nginx-module' (git@github.com:Kong/lua-kong-nginx-module.git) unregistered for path 'lua-kong-nginx-module'
+Cleared directory 'lua-resty-lmdb'
+Submodule 'lua-resty-lmdb' (git@github.com:Kong/lua-resty-lmdb.git) unregistered for path 'lua-resty-lmdb'
+docker rmi "kong/kong":3.9.2-amazonlinux
+docker rmi amd64-3.9.2-amazonlinux
+docker rmi arm64-3.9.2-amazonlinux
+'running build: RESTY_IMAGE_BASE: amazonlinux'
+'               RESTY_IMAGE_TAG:  2023'
+.ci/setup_ci.sh
+/Library/Developer/CommandLineTools/usr/bin/make build-kong
+starting make in kong-build-tools
+rm -rf kong
+cp -R /tmp/kong-source-392-rpm-amd64 kong
+mkdir -pv kong/distribution
+kong/distribution
+git submodule update --init --recursive
+Submodule path 'lua-kong-nginx-module': checked out 'fec73310688b16da974a97e52bf27aa9c698bfaa'
+Submodule path 'lua-resty-lmdb': checked out '13384fcdcec7b15f1b499c8c958ab6a050e64f10'
+Submodule path 'lua-resty-lmdb/lmdb': checked out '01b1b7dc204abdf3849536979205dc9e3a0e3ece'
+git submodule status
+ fec73310688b16da974a97e52bf27aa9c698bfaa lua-kong-nginx-module (0.2.0-17-gfec7331)
+ 13384fcdcec7b15f1b499c8c958ab6a050e64f10 lua-resty-lmdb (1.0.0~2)
+git -C kong submodule update --init --recursive
+git -C kong submodule status
+cp kong/.requirements kong/distribution/.requirements
+touch id_rsa.private
+false kong-build-local-rpm-amd64:kong-rpm-6d291ae10-3.9.2-$(git --git-dir=/tmp/kong-source-392-rpm-amd64/.git rev-parse --short HEAD)-0-openssl || \
+	( /Library/Developer/CommandLineTools/usr/bin/make build-openresty && \
+	rm -f github-token; \
+	echo $GITHUB_TOKEN > github-token && \
+	docker build --platform=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -f dockerfiles/Dockerfile.kong \
+	--build-arg PACKAGE_TYPE=rpm \
+	--build-arg DOCKER_REPOSITORY=kong-build-local-rpm-amd64 \
+	--build-arg DOCKER_OPENRESTY_SUFFIX=6d291ae-$(find kong/distribution -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum  | cut -d' ' -f 1)10-0-openssl \
+	--build-arg ENABLE_LJBC=`grep ENABLE_LJBC /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+	--build-arg BUILDKIT_INLINE_CACHE=1 \
+	--build-arg SSL_PROVIDER=openssl \
+	-t kong-build-local-rpm-amd64:kong-rpm-6d291ae10-3.9.2-$(git --git-dir=/tmp/kong-source-392-rpm-amd64/.git rev-parse --short HEAD)-0-openssl . )
+starting make in kong-build-tools
+rm -rf kong
+cp -R /tmp/kong-source-392-rpm-amd64 kong
+mkdir -pv kong/distribution
+kong/distribution
+git submodule update --init --recursive
+git submodule status
+ fec73310688b16da974a97e52bf27aa9c698bfaa lua-kong-nginx-module (0.2.0-17-gfec7331)
+ 13384fcdcec7b15f1b499c8c958ab6a050e64f10 lua-resty-lmdb (1.0.0~2)
+git -C kong submodule update --init --recursive
+git -C kong submodule status
+cp kong/.requirements kong/distribution/.requirements
+rm github-token
+false kong-build-local-rpm-amd64:openresty-rpm-6d291ae-$(find kong/distribution -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum  | cut -d' ' -f 1)10-0-openssl || \
+	( \
+		echo $GITHUB_TOKEN > github-token; \
+		docker pull --quiet $(sed -ne 's;FROM \(.*rpm.*\) as.*;\1;p' dockerfiles/Dockerfile.openresty); \
+		docker build --platform=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -f dockerfiles/Dockerfile.openresty \
+		--build-arg RESTY_VERSION=1.31.1.1 \
+		--build-arg RESTY_LUAROCKS_VERSION=3.12.2 \
+		--build-arg KONG_OPENSSL_VERSION=0 \
+		--build-arg RESTY_OPENSSL_VERSION=3.5.7 \
+		--build-arg RESTY_BORINGSSL_VERSION=`grep RESTY_BORINGSSL_VERSION /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg SSL_PROVIDER=openssl \
+		--build-arg RESTY_PCRE_VERSION=10.46 \
+		--build-arg PACKAGE_TYPE=rpm \
+		--build-arg DOCKER_REPOSITORY=kong-build-local-rpm-amd64 \
+		--build-arg DOCKER_BASE_SUFFIX=6d291ae0 \
+		--build-arg EDITION=`grep EDITION /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg ENABLE_KONG_LICENSING=`grep ENABLE_KONG_LICENSING /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg KONG_NGINX_MODULE=`grep KONG_NGINX_MODULE /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg RESTY_LMDB=`grep RESTY_LMDB /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg RESTY_WEBSOCKET=`grep RESTY_WEBSOCKET /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg RESTY_EVENTS=`grep RESTY_EVENTS /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg ATC_ROUTER=`grep ATC_ROUTER /tmp/kong-source-392-rpm-amd64/.requirements | awk -F"=" '{print $2}'` \
+		--build-arg OPENRESTY_PATCHES=1 \
+		--build-arg DEBUG=0 \
+		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		-t kong-build-local-rpm-amd64:openresty-rpm-6d291ae-$(find kong/distribution -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum  | cut -d' ' -f 1)10-0-openssl . && \
+		( \
+			rm github-token || true \
+		) \
+	)
+rm github-token
+docker run -d --rm --name output kong-build-local-rpm-amd64:kong-packaged-rpm-6d291ae10-3.9.2-$(git --git-dir=/tmp/kong-source-392-rpm-amd64/.git rev-parse --short HEAD)-0-openssl tail -f /dev/null
+cdead09ad5a6b51fae6e8cb6f2a041cd002d9fc48b5e599d5813eaa391c6ff93
+docker cp output:/output/ output
+docker stop output
+output
+mv output/output/*.rpm* output/
+rm -rf output/*/
+Packaged Kong:
+ls -al output/
+total 108872
+drwxr-xr-x@  4 suriyasiangsai  wheel       128 Jun 16 04:02 .
+drwxr-xr-x@ 38 suriyasiangsai  wheel      1216 Jun 16 04:02 ..
+-rwxr-xr-x@  1 suriyasiangsai  wheel        71 Jun 16 03:28 .gitignore
+-rw-r--r--@  1 suriyasiangsai  wheel  55737586 Jun 16 04:02 kong-3.9.2.aws.amd64.rpm
+/tmp/kong-build-tools-392-rpm-amd64/output/kong-3.9.2.aws.amd64.rpm -> /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm
+[INFO]  Build complete! Package: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm
