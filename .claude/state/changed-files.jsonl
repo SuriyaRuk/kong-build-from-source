@@ -2,3 +2,7 @@
 {"file":"build-kong-3.9.2-1.31.1-amd64.sh","action":"Edit","timestamp":"2026-06-15T05:32:11Z","important":false}
 {"file":"patch-kong-deb.sh","action":"Edit","timestamp":"2026-06-15T06:23:00Z","important":false}
 {"file":"patch-kong-deb.sh","action":"Edit","timestamp":"2026-06-15T08:57:16Z","important":false}
+{"file":"Dockerfile","action":"Edit","timestamp":"2026-06-15T09:31:05Z","important":false}
+{"file":"kong-build-tools-1.31.1.1/fpm-entrypoint.sh","action":"Edit","timestamp":"2026-06-15T09:51:43Z","important":false}
+{"file":"kong-build-tools/fpm-entrypoint.sh","action":"Edit","timestamp":"2026-06-15T09:51:56Z","important":false}
+{"file":"kong-source/build/package/nfpm.yaml","action":"Edit","timestamp":"2026-06-15T09:52:07Z","important":false}

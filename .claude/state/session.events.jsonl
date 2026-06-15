@@ -7,3 +7,6 @@
 {"id":"event-000003","type":"session.stop","ts":"2026-06-15T08:57:33Z","state":"stopped"}
 {"id":"event-000002","type":"session.stop","ts":"2026-06-15T08:58:42Z","state":"stopped"}
 {"id":"event-000001","type":"session.stop","ts":"2026-06-15T09:00:08Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-15T09:30:36Z","state":"stopped"}
+{"id":"event-000009","type":"session.stop","ts":"2026-06-15T09:39:24Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-15T09:46:09Z","state":"stopped"}

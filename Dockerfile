@@ -8,7 +8,7 @@
 #   trivy image --severity HIGH,CRITICAL kong-patched:3.9.1-secure
 
 # Stage 1: Base with security updates
-FROM ubuntu:24.04 AS secure-base
+FROM ubuntu:26.04 AS secure-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -38,13 +38,15 @@ RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   unzip \
   git \
+  perl \
   lua5.1 \
   lua-sec \
   lua-socket \
   zlib1g \
   zlib1g-dev \
   libyaml-0-2 \
-  libpcre3 && \
+  libpcre2-8-0 \
+  libpcre2-dev && \
   rm -rf /var/lib/apt/lists/*
 
 # Create kong user before installing .deb (in case package postinst fails)
@@ -54,9 +56,18 @@ RUN userdel -r ubuntu 2>/dev/null || true && \
 
 # Copy and install local .deb — filename embeds the OpenResty version and matches
 # TARGETARCH (amd64 or arm64): kong-3.9.1-openresty1.29.2.5.<arch>.deb
-COPY output/kong-3.9.1-openresty1.29.2.5.${TARGETARCH}.deb /tmp/kong.deb
-RUN dpkg -i /tmp/kong.deb && \
-  rm /tmp/kong.deb && \
+COPY output/kong-3.9.2-openresty1.31.1.1.${TARGETARCH}.deb /tmp/kong.deb
+# The .deb declares a stale `libpcre3` dependency (from kong-build-tools'
+# fpm-entrypoint.sh). OpenResty 1.31.1.1 here statically links PCRE2 10.46
+# (--with-pcre=/work/pcre-10.46), so no dynamic libpcre is needed, and
+# libpcre3 (legacy PCRE1) no longer exists on Ubuntu 26.04. Strip the bogus
+# dependency from the control file before installing. Idempotent: a no-op
+# once the package metadata is fixed upstream.
+RUN dpkg-deb -R /tmp/kong.deb /tmp/kong-deb && \
+  sed -i -E 's/(^Depends:.*)libpcre3, ?/\1/' /tmp/kong-deb/DEBIAN/control && \
+  dpkg-deb --build /tmp/kong-deb /tmp/kong-fixed.deb && \
+  dpkg -i /tmp/kong-fixed.deb && \
+  rm -rf /tmp/kong.deb /tmp/kong-deb /tmp/kong-fixed.deb && \
   rm -rf /var/lib/apt/lists/*
 
 # Create symlinks
@@ -122,7 +133,7 @@ CMD ["kong", "docker-start"]
 LABEL maintainer="Kong Docker Maintainers <suriya.ruk@dome.cloud> (@team-gateway-bot)"
 LABEL org.opencontainers.image.version="26.04"
 LABEL security.patched="true"
-LABEL security.patch.date="2026-05-26"
+LABEL security.patch.date="2026-06-15"
 LABEL security.patch.method="base-image-update-with-security-patches"
-LABEL kong.version="3.9.1"
-LABEL description="Kong Gateway 3.9.1 with security patches applied"
+LABEL kong.version="3.9.2"
+LABEL description="Kong Gateway 3.9.2 with security patches applied"

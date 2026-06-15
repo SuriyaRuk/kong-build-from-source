@@ -83,14 +83,21 @@ deb_repack() {
     local NEW_DATA="${AR_DIR}/data.tar.${EXT}"
 
     # recompress data archive
+    # CRITICAL: force GNU tar format. macOS `tar` is bsdtar/libarchive, whose
+    # default (restricted PAX) emits `type 'x'` extended headers for long paths
+    # and metadata. dpkg-deb's minimal tar reader rejects those with:
+    #   "unsupported PAX tar header type 'x'"
+    # gnutar format is what real .deb data archives use; --no-mac-metadata drops
+    # AppleDouble/xattr entries that would otherwise pollute the package.
+    local TAR_FMT="--format=gnutar --no-mac-metadata"
     case "${EXT}" in
-      xz)  tar -cJf "${NEW_DATA}" -C "${SRC}" \
+      xz)  tar ${TAR_FMT} -cJf "${NEW_DATA}" -C "${SRC}" \
              $(cd "${SRC}" && ls | grep -v '\.ar_dir') ;;
-      gz)  tar -czf "${NEW_DATA}" -C "${SRC}" \
+      gz)  tar ${TAR_FMT} -czf "${NEW_DATA}" -C "${SRC}" \
              $(cd "${SRC}" && ls | grep -v '\.ar_dir') ;;
-      zst) tar --zstd -cf "${NEW_DATA}" -C "${SRC}" \
+      zst) tar ${TAR_FMT} --zstd -cf "${NEW_DATA}" -C "${SRC}" \
              $(cd "${SRC}" && ls | grep -v '\.ar_dir') ;;
-      bz2) tar -cjf "${NEW_DATA}" -C "${SRC}" \
+      bz2) tar ${TAR_FMT} -cjf "${NEW_DATA}" -C "${SRC}" \
              $(cd "${SRC}" && ls | grep -v '\.ar_dir') ;;
     esac
 
