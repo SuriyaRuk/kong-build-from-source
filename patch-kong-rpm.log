@@ -1,0 +1,52 @@
+[1;33m[ warn][0m Host lacks RPM tooling — delegating to fedora:latest container(s) ...
+[0;36m[patch][0m Directory mode — 2 file(s) found
+[0;36m[patch][0m Patching kong-3.9.2-openresty1.31.1.1.amd64.rpm via fedora:latest (linux/amd64) ...
+[0;34m[debug][0m Container mounts: -v /Users/suriyasiangsai/works/Bathnet/build-from-source/output:/Users/suriyasiangsai/works/Bathnet/build-from-source/output -v /Users/suriyasiangsai/works/Bathnet/build-from-source/output:/Users/suriyasiangsai/works/Bathnet/build-from-source/output
+[0;34m[debug][0m Container args:   /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm
+[patch] installing rpm tooling in helper container ...
+[0;34m[debug][0m Package: kong  arch=x86_64
+[0;36m[patch][0m Installing kong into helper root (files only) ...
+[0;34m[debug][0m Installed init.lua: /usr/local/share/lua/5.1/kong/init.lua (1999 lines)
+[0;36m[patch][0m Applying fix: remove pool_opts from set_current_peer ...
+[0;34m[debug][0m Before patch — matching line(s):
+[0;34m[debug][0m 1407:  local ok, err = set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)
+[0;34m[debug][0m Patch result:
+[0;34m[debug][0m line 1407: replaced 1 of 1 occurrence(s)
+  - set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)
+  + set_current_peer(balancer_data_ip, balancer_data_port)
+[0;34m[debug][0m After patch — matching line(s):
+[0;34m[debug][0m 1407:  local ok, err = set_current_peer(balancer_data_ip, balancer_data_port)
+[0;34m[debug][0m patched init.lua (pre-repack): old-pattern matches=0  new-pattern matches=1
+[0;32m[  ok ][0m Fix applied
+[0;36m[patch][0m Repacking with rpmrebuild: kong-3.9.2-openresty1.31.1.1.amd64.rpm ...
+[0;34m[debug][0m rpmrebuild output: /tmp/tmp.VyU6V2XijC/x86_64/kong-3.9.2-1.x86_64.rpm
+[0;32m[  ok ][0m Done: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm  (37M)
+[0;36m[patch][0m Verifying packaged result ...
+[0;34m[debug][0m Re-extracting /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm for verification → /tmp/tmp.7JnI9djCKn
+[0;34m[debug][0m packaged init.lua: old-pattern matches=0  new-pattern matches=1
+[0;32m[  ok ][0m Verified: kong-3.9.2-openresty1.31.1.1.amd64.rpm contains the fix and no stale pattern
+[0;36m[patch][0m Patching kong-3.9.2-openresty1.31.1.1.arm64.rpm via fedora:latest (linux/arm64) ...
+[0;34m[debug][0m Container mounts: -v /Users/suriyasiangsai/works/Bathnet/build-from-source/output:/Users/suriyasiangsai/works/Bathnet/build-from-source/output -v /Users/suriyasiangsai/works/Bathnet/build-from-source/output:/Users/suriyasiangsai/works/Bathnet/build-from-source/output
+[0;34m[debug][0m Container args:   /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm
+[patch] installing rpm tooling in helper container ...
+[0;34m[debug][0m Package: kong  arch=aarch64
+[0;36m[patch][0m Installing kong into helper root (files only) ...
+[0;34m[debug][0m Installed init.lua: /usr/local/share/lua/5.1/kong/init.lua (1999 lines)
+[0;36m[patch][0m Applying fix: remove pool_opts from set_current_peer ...
+[0;34m[debug][0m Before patch — matching line(s):
+[0;34m[debug][0m 1407:  local ok, err = set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)
+[0;34m[debug][0m Patch result:
+[0;34m[debug][0m line 1407: replaced 1 of 1 occurrence(s)
+  - set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)
+  + set_current_peer(balancer_data_ip, balancer_data_port)
+[0;34m[debug][0m After patch — matching line(s):
+[0;34m[debug][0m 1407:  local ok, err = set_current_peer(balancer_data_ip, balancer_data_port)
+[0;34m[debug][0m patched init.lua (pre-repack): old-pattern matches=0  new-pattern matches=1
+[0;32m[  ok ][0m Fix applied
+[0;36m[patch][0m Repacking with rpmrebuild: kong-3.9.2-openresty1.31.1.1.arm64.rpm ...
+[0;34m[debug][0m rpmrebuild output: /tmp/tmp.RQOxC6hyGl/aarch64/kong-3.9.2-1.aarch64.rpm
+[0;32m[  ok ][0m Done: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm  (37M)
+[0;36m[patch][0m Verifying packaged result ...
+[0;34m[debug][0m Re-extracting /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm for verification → /tmp/tmp.LOsSFct1nm
+[0;34m[debug][0m packaged init.lua: old-pattern matches=0  new-pattern matches=1
+[0;32m[  ok ][0m Verified: kong-3.9.2-openresty1.31.1.1.arm64.rpm contains the fix and no stale pattern

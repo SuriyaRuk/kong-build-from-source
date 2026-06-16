@@ -10,3 +10,4 @@
 {"file":"build-kong-3.9.2-1.31.1-rpm-amd64.sh","action":"Edit","timestamp":"2026-06-15T19:12:47Z","important":false}
 {"file":"/tmp/kong-build-tools-392-rpm-arm64/dockerfiles/Dockerfile.openresty","action":"Edit","timestamp":"2026-06-15T19:47:14Z","important":false}
 {"file":"build-kong-3.9.2-1.31.1.1-rpm-amd64.sh","action":"Edit","timestamp":"2026-06-15T20:38:10Z","important":false}
+{"file":"patch-kong-rpm.sh","action":"Write","timestamp":"2026-06-15T21:10:01Z","important":false}
