@@ -44,6 +44,15 @@ INIT_LUA_ABS="/${INIT_LUA_PATH}"
 OLD_PATTERN='set_current_peer(balancer_data_ip, balancer_data_port, pool_opts)'
 NEW_PATTERN='set_current_peer(balancer_data_ip, balancer_data_port)'
 
+# Kong CLI script + the absolute resty path the build-kong.sh shebang sed used.
+# A greedy `sed 's/resty/<abs>/'` (no line anchor) rewrote the FIRST `resty` on
+# EVERY line of bin/kong, mangling Lua vars (resty_ngx_log_level/resty_cmd) →
+# runtime "/usr/local/bin/kong:143: '<name>' expected near '/'". We repair it
+# here in the same repack pass as the init.lua fix.
+KONG_BIN_PATH="usr/local/bin/kong"
+KONG_BIN_ABS="/${KONG_BIN_PATH}"
+RESTY_ABS="/usr/local/openresty/bin/resty"
+
 RPM_HELPER_IMAGE="${RPM_HELPER_IMAGE:-fedora:latest}"
 
 # ── do we have the Linux RPM toolchain to patch natively? ─────────────────────
@@ -106,6 +115,42 @@ PYEOF
   dbg "$(grep -nF "${NEW_PATTERN}" "${INIT_FILE}" || true)"
 }
 
+# ── repair the Kong CLI (bin/kong) shebang-sed corruption ─────────────────────
+# Reverts every over-replacement (absolute path → `resty`) then restores the
+# intended absolute shebang on line 1 only. Idempotent; no-op on a clean file.
+fix_kong_bin() {
+  local KONG_FILE="$1"
+  local RESULT
+  RESULT=$(python3 - "${KONG_FILE}" "${RESTY_ABS}" << 'PYEOF'
+import sys
+path, bad = sys.argv[1], sys.argv[2]
+text = open(path).read()
+if bad not in text:
+    print("no absolute-resty path present — nothing to repair (no-op)")
+else:
+    text = text.replace(bad, 'resty')               # undo greedy per-line edit
+    lines = text.split('\n')
+    lines[0] = lines[0].replace('resty', bad, 1)     # restore shebang (line 1 only)
+    open(path, 'w').write('\n'.join(lines))
+    print("reverted over-replacement; absolute shebang restored on line 1")
+PYEOF
+)
+  dbg "kong bin repair: ${RESULT}"
+}
+
+# ── verify bin/kong: no stray absolute-resty path beyond the shebang (line 1) ──
+verify_kong_bin() {
+  local FILE="$1" LABEL="${2:-bin/kong}"
+  local STRAY
+  STRAY=$(tail -n +2 "${FILE}" | grep -cF "${RESTY_ABS}" || true)
+  dbg "${LABEL}: stray '${RESTY_ABS}' occurrences on lines 2+ = ${STRAY}"
+  if [ "${STRAY}" -gt 0 ]; then
+    warn "${LABEL}: ${STRAY} stray '${RESTY_ABS}' beyond the shebang — still corrupted"
+    return 1
+  fi
+  return 0
+}
+
 # ── extract just init.lua from an .rpm payload (for verification) ──────────────
 rpm_extract_init() {
   local RPM="$1" DEST="$2"
@@ -126,11 +171,16 @@ verify_rpm() {
     warn "verification: ${INIT_LUA_PATH} missing from repacked .rpm"
     rm -rf "${VDIR}"; return 1
   fi
-  if verify_init_file "${VFILE}" "packaged init.lua"; then
-    ok "Verified: $(basename "${RPM}") contains the fix and no stale pattern"
-    rm -rf "${VDIR}"; return 0
+  if ! verify_init_file "${VFILE}" "packaged init.lua"; then
+    rm -rf "${VDIR}"; return 1
   fi
-  rm -rf "${VDIR}"; return 1
+  # bin/kong is extracted by the same payload unpack — verify it too if present.
+  local KFILE="${VDIR}/${KONG_BIN_PATH}"
+  if [ -f "${KFILE}" ] && ! verify_kong_bin "${KFILE}" "packaged bin/kong"; then
+    rm -rf "${VDIR}"; return 1
+  fi
+  ok "Verified: $(basename "${RPM}") contains the fixes and no stale patterns"
+  rm -rf "${VDIR}"; return 0
 }
 
 # ── native (Linux/in-container) patch of a single .rpm ────────────────────────
@@ -170,6 +220,18 @@ patch_rpm_native() {
   verify_init_file "${INIT_FILE}" "patched init.lua (pre-repack)" \
     || err "Patch verification failed for $(basename "${INPUT_RPM}") (pattern not found — different Kong version?)"
   ok "Fix applied"
+
+  # Repair the Kong CLI shebang corruption (idempotent).
+  local KONG_FILE="${KONG_BIN_ABS}"
+  if [ -f "${KONG_FILE}" ]; then
+    log "Repairing Kong CLI shebang in ${KONG_BIN_PATH} ..."
+    fix_kong_bin "${KONG_FILE}"
+    verify_kong_bin "${KONG_FILE}" "patched bin/kong (pre-repack)" \
+      || err "bin/kong repair verification failed for $(basename "${INPUT_RPM}")"
+    ok "Kong CLI repaired"
+  else
+    warn "${KONG_BIN_PATH} not present in ${NAME} — skipping CLI repair"
+  fi
 
   log "Repacking with rpmrebuild: $(basename "${OUTPUT_ABS}") ..."
   local TOPDIR; TOPDIR=$(mktemp -d)

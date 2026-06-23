@@ -19,3 +19,11 @@
 {"id":"event-000001","type":"session.stop","ts":"2026-06-15T20:32:31Z","state":"stopped"}
 {"id":"event-000002","type":"session.stop","ts":"2026-06-15T21:06:33Z","state":"stopped"}
 {"id":"event-000001","type":"session.stop","ts":"2026-06-15T21:29:36Z","state":"stopped"}
+{"id":"event-000006","type":"session.stop","ts":"2026-06-18T06:10:05Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-18T06:13:02Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-18T08:39:21Z","state":"stopped"}
+{"id":"event-000015","type":"session.stop","ts":"2026-06-18T09:16:03Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-23T03:28:20Z","state":"stopped"}
+{"id":"event-000009","type":"session.stop","ts":"2026-06-23T04:53:34Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-23T05:32:16Z","state":"stopped"}
+{"id":"event-000001","type":"session.stop","ts":"2026-06-23T05:52:31Z","state":"stopped"}

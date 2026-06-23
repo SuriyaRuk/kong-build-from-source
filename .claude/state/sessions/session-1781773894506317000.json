@@ -1,0 +1,42 @@
+{
+  "changes_this_session": [],
+  "cwd": "/Users/suriyasiangsai/works/Bathnet/build-from-source",
+  "duration_minutes": 4,
+  "ended_at": "2026-06-18T09:16:03Z",
+  "event_seq": 14,
+  "fork_count": 0,
+  "git": {
+    "branch": "main",
+    "last_commit": "96e5f0c",
+    "uncommitted_changes": 0
+  },
+  "harness_mem": {
+    "healthy": false,
+    "last_checked": "2026-06-18T09:11:34Z",
+    "last_error": "daemon-unreachable"
+  },
+  "intent": "literal",
+  "last_event_id": "event-000014",
+  "memory_logged": true,
+  "orchestration": {
+    "max_state_retries": 3,
+    "retry_backoff_seconds": 10
+  },
+  "parent_session_id": null,
+  "plans": {
+    "completed_tasks": 0,
+    "exists": false,
+    "last_modified": 0,
+    "pending_tasks": 0,
+    "todo_tasks": 0,
+    "wip_tasks": 0
+  },
+  "project_name": "build-from-source",
+  "prompt_seq": 1,
+  "resume_token": "resume-1781773894506343000",
+  "session_id": "session-1781773894506317000",
+  "started_at": "2026-06-18T09:11:34Z",
+  "state": "stopped",
+  "state_version": 1,
+  "updated_at": "2026-06-18T09:15:50Z"
+}

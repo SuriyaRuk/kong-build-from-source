@@ -286,6 +286,24 @@ if 'rm -rf /var/cache/luarocks/' not in text: f.write_text(text.replace(OLD, NEW
 PYEOF
 fi
 
+# ─── Patch I3: scope the bin/kong shebang sed to line 1 only ─────────────────
+# build-kong.sh rewrites the kong CLI shebang to an absolute resty path with
+# `sed 's/resty/.../'` — but with no line address it also rewrites the FIRST
+# `resty` on every later line, corrupting Lua variable names (resty_ngx_log_level,
+# resty_cmd) in Kong 3.9.x's Lua-based bin/kong. Result at runtime:
+#   /usr/local/bin/kong:143: '<name>' expected near '/'
+# Anchor the substitution to line 1 (the shebang) so only the shebang changes.
+if [ -f "${BUILD_KONG_SH}" ]; then
+  python3 - "${BUILD_KONG_SH}" << 'PYEOF'
+import sys, pathlib
+f = pathlib.Path(sys.argv[1])
+text = f.read_text()
+OLD = "sed -i 's/resty/"
+NEW = "sed -i '1s/resty/"
+if OLD in text and NEW not in text: f.write_text(text.replace(OLD, NEW, 1))
+PYEOF
+fi
+
 # ─── Patch J: pre-install Kong deps via per-author luarocks.org manifests ─────
 if [ -f "${BUILD_KONG_SH}" ]; then
   python3 - "${BUILD_KONG_SH}" << 'PYEOF'
@@ -312,6 +330,7 @@ NEW = (
     '  install_rock kikito inspect 3.1.3\n'
     '  install_rock brunoos luasec 1.3.2\n'
     '  install_rock lunarmodules luasocket 3.0rc1\n'
+    '  install_rock hisham luafilesystem 1.8.0\n'
     '  install_rock tieske penlight 1.14.0\n'
     '  install_rock pintsized lua-resty-http 0.17.2\n'
     '  install_rock thibaultcha lua-resty-jit-uuid 0.0.7\n'

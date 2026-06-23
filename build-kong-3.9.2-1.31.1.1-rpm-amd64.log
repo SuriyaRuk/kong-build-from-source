@@ -39,11 +39,6 @@ Already up to date.
 [INFO]  Initialising submodules in kong-build-tools ...
 [INFO]  Patching /tmp/kong-build-tools-392-rpm-amd64/openresty-build-tools/kong-ngx-build to support PCRE2 downloads
 [INFO]  Patching Makefile: fix cascade semicolons in actual-build-kong target
-[INFO]  Building amd64 kong/fpm:0.5.1 image ...
-Untagged: kong/fpm:0.5.1
-Deleted: sha256:7c628639326048545db5f541408136e1229610ec2ebf7f30e81398fc2c50efa0
-Deleted: sha256:0517c7179c63ea1b87e29ee914e1c3053ef8d9602b3ebbe0b4b6797eb9a0e4a9
-Deleted: sha256:5185c2874b2254ee9c5b01915f083de554c2af9547fc3f070c7fe3f600f40360
 [INFO]  Ensuring amd64 alpine base image ...
 [INFO]  Starting Kong amd64 RPM build ...
 starting make in kong-build-tools
@@ -142,7 +137,7 @@ false kong-build-local-rpm-amd64:openresty-rpm-6d291ae-$(find kong/distribution 
 	)
 rm github-token
 docker run -d --rm --name output kong-build-local-rpm-amd64:kong-packaged-rpm-6d291ae10-3.9.2-$(git --git-dir=/tmp/kong-source-392-rpm-amd64/.git rev-parse --short HEAD)-0-openssl tail -f /dev/null
-cdead09ad5a6b51fae6e8cb6f2a041cd002d9fc48b5e599d5813eaa391c6ff93
+41d818dae02b47e9ce13581133e1aba302da3e2afc4bca5922fda26af290a216
 docker cp output:/output/ output
 docker stop output
 output
@@ -151,9 +146,9 @@ rm -rf output/*/
 Packaged Kong:
 ls -al output/
 total 108872
-drwxr-xr-x@  4 suriyasiangsai  wheel       128 Jun 16 04:02 .
-drwxr-xr-x@ 38 suriyasiangsai  wheel      1216 Jun 16 04:02 ..
+drwxr-xr-x@  4 suriyasiangsai  wheel       128 Jun 18 16:57 .
+drwxr-xr-x@ 38 suriyasiangsai  wheel      1216 Jun 18 16:55 ..
 -rwxr-xr-x@  1 suriyasiangsai  wheel        71 Jun 16 03:28 .gitignore
--rw-r--r--@  1 suriyasiangsai  wheel  55737586 Jun 16 04:02 kong-3.9.2.aws.amd64.rpm
+-rw-r--r--@  1 suriyasiangsai  wheel  55737832 Jun 18 16:56 kong-3.9.2.aws.amd64.rpm
 /tmp/kong-build-tools-392-rpm-amd64/output/kong-3.9.2.aws.amd64.rpm -> /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm
 [INFO]  Build complete! Package: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm

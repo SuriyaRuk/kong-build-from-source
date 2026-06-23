@@ -6,8 +6,8 @@
 # Stage 1: Base with security updates
 FROM amazonlinux:2023 AS secure-base
 
-RUN dnf update -y && \
-    dnf install -y \
+RUN dnf upgrade -y --releasever=latest && \
+    dnf install -y --allowerasing \
     curl \
     ca-certificates \
     wget \
@@ -20,7 +20,8 @@ FROM secure-base AS kong-install
 
 ARG TARGETARCH
 
-# Dependencies for Kong
+# Dependencies for Kong (gcc/make compile the luafilesystem rock below; they
+# live only in this build stage and are NOT copied into the runtime image).
 RUN dnf install -y \
     perl \
     perl-Time-HiRes \
@@ -30,7 +31,12 @@ RUN dnf install -y \
     openssl \
     hostname \
     tar \
-    gzip && \
+    gzip \
+    gcc \
+    gcc-c++ \
+    make \
+    unzip \
+    expat-devel && \
     dnf clean all
 
 # Create kong user
@@ -50,6 +56,66 @@ RUN dnf install -y /tmp/kong.rpm && \
     rm -rf /tmp/kong.rpm && \
     dnf clean all
 
+# ── Restore missing Kong dependency rocks ────────────────────────────────────
+# The source build installed rocks with `luarocks --deps-mode none`, so several
+# transitive dependencies never landed in the .rpm. Their absence aborts Kong at
+# startup (e.g. "pl.path requires LuaFileSystem", "module 'net.url' not found").
+# We install the full missing closure here (versions resolved against Kong 3.9.2)
+# using the image's bundled luarocks/LuaJIT; sub-deps (lua-resty-hmac/-string)
+# resolve automatically. Pure-Lua rocks are arch-independent; luafilesystem and
+# luaexpat compile against the in-image LuaJIT (gcc/make/expat-devel above).
+RUN set -eux; \
+    L=/usr/local/bin/luarocks; \
+    "$L" install luafilesystem 1.8.0; \
+    "$L" install net-url 1.2; \
+    "$L" install date 2.2.1; \
+    "$L" install lua-resty-luasocket 1.1.2; \
+    "$L" install lua-resty-timer 1.1.0; \
+    "$L" install lua-resty-jwt 0.3.2; \
+    "$L" install luaexpat 1.5.2; \
+    "$L" install lualogging 1.8.2; \
+    "$L" install ansicolors 1.0.2; \
+    "$L" install etlua 1.3.0; \
+    "$L" install loadkit 1.1.0; \
+    # fail fast if any key dependency still cannot be loaded
+    /usr/local/openresty/luajit/bin/luajit -e 'for _,m in ipairs({"lfs","net.url","date","etlua","logging","lxp"}) do assert(require(m), m.." not loadable") end print("kong dep closure OK")'
+
+# ── Build the Ada URL library (libada.so) ────────────────────────────────────
+# lua-resty-ada is only the FFI binding; Kong needs the native Ada URL parser
+# (ADA 2.9.2 per kong-source/.requirements), which the source build never
+# shipped. Without it Kong aborts in PDK init: "unable to load ada library".
+# resty.ada searches package.cpath directories for libada.so, so we place it in
+# /usr/local/lib/lua/5.1 (a cpath dir).
+ARG ADA_VERSION=2.9.2
+RUN set -eux; \
+    cd /tmp; \
+    curl -fsSL -o ada-singleheader.zip \
+        "https://github.com/ada-url/ada/releases/download/v${ADA_VERSION}/singleheader.zip"; \
+    unzip -oq ada-singleheader.zip; \
+    g++ -O2 -std=c++17 -fPIC -shared ada.cpp -o /usr/local/lib/lua/5.1/libada.so; \
+    rm -f ada-singleheader.zip ada.cpp ada.h ada_c.h; \
+    /usr/local/openresty/luajit/bin/luajit -e 'local a=require("resty.ada"); assert(a.parse("http://e.com/p?x=1"), "ada parse failed") print("libada OK")'
+
+# ── Accept OpenResty 1.31.1.1 ────────────────────────────────────────────────
+# Kong 3.9.2 pins its required OpenResty to 1.25.3.2 in kong/meta.lua, but this
+# project deliberately builds against OpenResty 1.31.1.1 (the whole point of the
+# repack). Without widening the gate Kong refuses to start: "incompatible
+# OpenResty found ... Kong requires version 1.25.3.2, got 1.31.1.1". We widen
+# the accepted range to [1.25.3.2 .. 1.31.1.1].
+RUN set -eux; \
+    META=/usr/local/share/lua/5.1/kong/meta.lua; \
+    sed -i 's/nginx = { "1.25.3.2" }/nginx = { "1.25.3.2", "1.31.1.1" }/' "$META"; \
+    grep -q '"1.25.3.2", "1.31.1.1"' "$META"
+
+# Strip module documentation that ships example private keys before it can be
+# copied into the runtime image. lua-resty-rsa's .pod embeds a sample RSA
+# PRIVATE KEY block; deleting it HERE (in the build stage, before the runtime
+# `COPY --from=kong-install /usr/local`) keeps the secret out of every
+# persisted layer, so per-layer secret scanners stay clean. POD docs are not
+# needed at runtime.
+RUN find /usr/local/openresty -type d -name pod -prune -exec rm -rf {} + 2>/dev/null || true; \
+    find /usr/local -type f -name '*.pod' -delete 2>/dev/null || true
+
 # Create symlinks (matching the Debian Dockerfile pattern)
 RUN ln -sf /usr/local/openresty/bin/resty /usr/local/bin/resty && \
     ln -sf /usr/local/openresty/luajit/bin/luajit /usr/local/bin/luajit && \
@@ -66,12 +132,25 @@ RUN chown kong:0 /usr/local/bin/kong && \
 # Final stage: clean runtime image
 FROM secure-base AS runtime
 
-RUN dnf install -y \
-    perl \
+# Refresh metadata and apply all available security updates BEFORE and AFTER
+# installing runtime packages. This guarantees openssl/openssl-libs, perl-*,
+# and every other rpm in the runtime image are at the latest patched versions
+# (CVE fixes published after the base-image build), not whatever the cached
+# base layer happened to ship.
+# Install ONLY the lean perl interpreter (perl-interpreter), not the `perl`
+# meta-package: on AL2023 `perl` drags in perl-devel -> gcc/gcc-c++/make/
+# glibc-devel/kernel*-headers/*-srpm-macros/rust-toolset-* via weak deps,
+# bloating the runtime image to ~840MB and pulling ~20 build-only CVEs
+# (kernel headers, rust-toolset macros, *-devel). --install_weak_deps=False
+# keeps the closure minimal. dnf upgrade before+after applies all available
+# security errata so every rpm is at its latest patched version.
+RUN dnf upgrade -y --releasever=latest && \
+    dnf install -y --setopt=install_weak_deps=False \
+    perl-interpreter \
     perl-Time-HiRes \
     zlib \
-    pcre2 \
-    openssl && \
+    pcre2 && \
+    dnf upgrade -y --releasever=latest && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 

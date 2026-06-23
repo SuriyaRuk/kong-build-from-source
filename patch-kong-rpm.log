@@ -18,13 +18,18 @@
 [0;34m[debug][0m 1407:  local ok, err = set_current_peer(balancer_data_ip, balancer_data_port)
 [0;34m[debug][0m patched init.lua (pre-repack): old-pattern matches=0  new-pattern matches=1
 [0;32m[  ok ][0m Fix applied
+[0;36m[patch][0m Repairing Kong CLI shebang in usr/local/bin/kong ...
+[0;34m[debug][0m kong bin repair: reverted over-replacement; absolute shebang restored on line 1
+[0;34m[debug][0m patched bin/kong (pre-repack): stray '/usr/local/openresty/bin/resty' occurrences on lines 2+ = 0
+[0;32m[  ok ][0m Kong CLI repaired
 [0;36m[patch][0m Repacking with rpmrebuild: kong-3.9.2-openresty1.31.1.1.amd64.rpm ...
-[0;34m[debug][0m rpmrebuild output: /tmp/tmp.VyU6V2XijC/x86_64/kong-3.9.2-1.x86_64.rpm
-[0;32m[  ok ][0m Done: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm  (37M)
+[0;34m[debug][0m rpmrebuild output: /tmp/tmp.DYnbw6poga/x86_64/kong-3.9.2-1.x86_64.rpm
+[0;32m[  ok ][0m Done: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm  (36M)
 [0;36m[patch][0m Verifying packaged result ...
-[0;34m[debug][0m Re-extracting /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm for verification → /tmp/tmp.7JnI9djCKn
+[0;34m[debug][0m Re-extracting /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.amd64.rpm for verification → /tmp/tmp.nAcYZWCrfo
 [0;34m[debug][0m packaged init.lua: old-pattern matches=0  new-pattern matches=1
-[0;32m[  ok ][0m Verified: kong-3.9.2-openresty1.31.1.1.amd64.rpm contains the fix and no stale pattern
+[0;34m[debug][0m packaged bin/kong: stray '/usr/local/openresty/bin/resty' occurrences on lines 2+ = 0
+[0;32m[  ok ][0m Verified: kong-3.9.2-openresty1.31.1.1.amd64.rpm contains the fixes and no stale patterns
 [0;36m[patch][0m Patching kong-3.9.2-openresty1.31.1.1.arm64.rpm via fedora:latest (linux/arm64) ...
 [0;34m[debug][0m Container mounts: -v /Users/suriyasiangsai/works/Bathnet/build-from-source/output:/Users/suriyasiangsai/works/Bathnet/build-from-source/output -v /Users/suriyasiangsai/works/Bathnet/build-from-source/output:/Users/suriyasiangsai/works/Bathnet/build-from-source/output
 [0;34m[debug][0m Container args:   /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm
@@ -43,10 +48,15 @@
 [0;34m[debug][0m 1407:  local ok, err = set_current_peer(balancer_data_ip, balancer_data_port)
 [0;34m[debug][0m patched init.lua (pre-repack): old-pattern matches=0  new-pattern matches=1
 [0;32m[  ok ][0m Fix applied
+[0;36m[patch][0m Repairing Kong CLI shebang in usr/local/bin/kong ...
+[0;34m[debug][0m kong bin repair: reverted over-replacement; absolute shebang restored on line 1
+[0;34m[debug][0m patched bin/kong (pre-repack): stray '/usr/local/openresty/bin/resty' occurrences on lines 2+ = 0
+[0;32m[  ok ][0m Kong CLI repaired
 [0;36m[patch][0m Repacking with rpmrebuild: kong-3.9.2-openresty1.31.1.1.arm64.rpm ...
-[0;34m[debug][0m rpmrebuild output: /tmp/tmp.RQOxC6hyGl/aarch64/kong-3.9.2-1.aarch64.rpm
-[0;32m[  ok ][0m Done: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm  (37M)
+[0;34m[debug][0m rpmrebuild output: /tmp/tmp.phcd0aAcUa/aarch64/kong-3.9.2-1.aarch64.rpm
+[0;32m[  ok ][0m Done: /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm  (36M)
 [0;36m[patch][0m Verifying packaged result ...
-[0;34m[debug][0m Re-extracting /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm for verification → /tmp/tmp.LOsSFct1nm
+[0;34m[debug][0m Re-extracting /Users/suriyasiangsai/works/Bathnet/build-from-source/output/kong-3.9.2-openresty1.31.1.1.arm64.rpm for verification → /tmp/tmp.PrInZMvsnz
 [0;34m[debug][0m packaged init.lua: old-pattern matches=0  new-pattern matches=1
-[0;32m[  ok ][0m Verified: kong-3.9.2-openresty1.31.1.1.arm64.rpm contains the fix and no stale pattern
+[0;34m[debug][0m packaged bin/kong: stray '/usr/local/openresty/bin/resty' occurrences on lines 2+ = 0
+[0;32m[  ok ][0m Verified: kong-3.9.2-openresty1.31.1.1.arm64.rpm contains the fixes and no stale patterns
